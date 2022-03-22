@@ -1,6 +1,8 @@
 from PIL import Image, ImageFont, ImageDraw
 from PIL.ImageQt import ImageQt
 from PyQt5.Qt import *
+from PyQt5 import QtCore
+eps = 1e-3
 
 class Badge:
     def __init__(self, id, url, template_url):
@@ -13,14 +15,16 @@ class Badge:
         self._fontsize = 75
         self._name_coords = (600, 100)
         self._surname_coords = (600, 225)
-        self._photo_x = 0
-        self._photo_y = 0
+        self._photo_x = 140
+        self._photo_y = 180
         self._scale = 1.0
         self.init_name()
         self.add_text()
+        self.load_photo()
         self.add_photo()
         #self._template.show()
         #self._template_photo.show()
+        print(self._photo.size)
 
     def init_name(self):
         tmp = self._url.split('/')[-1]
@@ -68,20 +72,37 @@ class Badge:
             font=font,
             fill='#3a393d')
 
-    def add_photo(self):
+    def load_photo(self):
         self._photo = Image.open(self._url)
+
+    def add_photo(self):
         self._template_photo = self._template.copy()
-        self._photo_x = 140
-        self._photo_y = 180
         self._photo_cropped = self._photo.crop((self._photo_x, self._photo_y,
                                                self._photo_x + 341, self._photo_y + 469))
         self._template_photo.paste(self._photo_cropped, (94, 92), self._photo_cropped)
 
     def get_badge(self):
-        qim = ImageQt(self._template_photo)
+        image = self._template_photo.convert("RGBA")
+        qim = ImageQt(image)
         pixmap = QPixmap(QImage(qim))
-        label = QLabel()
-        label.setPixmap(pixmap)
-        return label
+        pixmap = pixmap.scaled(720, 480, QtCore.Qt.KeepAspectRatio)
+        return pixmap
 
+    def translate_photo(self, shift_x, shift_y):
+        self._photo_x += shift_x * 5
+        self._photo_y += shift_y * 5
+        self.add_photo()
+
+    def scale_photo(self, sign):
+        size = self._photo.size
+        if (sign == 1) :
+            scale = 1.05
+        else:
+            scale = 0.95238095
+        new_size = (round(size[0] * scale), round(size[1] * scale ))
+        self._photo = self._photo.resize(new_size, Image.ANTIALIAS)
+        self._photo_x *= scale
+        self._photo_y *= scale
+        print(self._photo.size)
+        self.add_photo()
 
