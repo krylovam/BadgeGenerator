@@ -3,7 +3,7 @@ import cv2
 
 class FaceDetector:
     def __init__(self, path):
-        self.face_cascade = cv2.CascadeClassifier('utils/cascade.xml')
+        self.face_cascade = cv2.CascadeClassifier('detector/utils/cascade.xml')
         self.img = cv2.imread(path)
         self.gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
     def detect(self):
@@ -15,8 +15,11 @@ class FaceDetector:
         cv2.imshow('img', self.img)
         cv2.waitKey()
 
+    def get_boxes(self):
+        assert len(self.faces) == 1
+        return self.faces[0]
 
 if __name__ == "__main__":
-    detector = FaceDetector('andrey.jpeg')
+    detector = FaceDetector('ruslan.jpg')
     detector.detect()
     detector.show_img()
