@@ -2,7 +2,10 @@ from PIL import Image, ImageFont, ImageDraw
 from PIL.ImageQt import ImageQt
 from PyQt5.Qt import *
 from PyQt5 import QtCore
-eps = 1e-3
+from detector.FaceDetection import FaceDetector
+import re
+PHOTO_WIDTH = 341
+PHOTO_HEIGHT = 469
 
 class Badge:
     def __init__(self, id, url, template_url):
@@ -21,17 +24,33 @@ class Badge:
         self.init_name()
         self.add_text()
         self.load_photo()
+        self.detect_face()
         self.add_photo()
         #self._template.show()
         #self._template_photo.show()
         print(self._photo.size)
 
     def init_name(self):
-        tmp = self._url.split('/')[-1]
+        self._url = self._url.replace('\\', '/')
+        tmp = re.split('/', self._url)[-1]
         tmp = tmp.split('.')[0]
         surname, name = tmp.split('_')
         self._name = name.title()
         self._surname = surname.title()
+
+    def detect_face(self):
+        detector = FaceDetector(self._url)
+        detector.detect()
+        x, y, w, h = detector.get_boxes()
+        center_x, center_y = x + w / 2, y + h / 2
+        scale = 0.5 * PHOTO_WIDTH / w
+        new_size_x = round(self._photo.size[0] * scale)
+        new_size_y = round(self._photo.size[1] * scale)
+        self._photo = self._photo.resize((new_size_x, new_size_y))
+        center_x *= scale
+        center_y *= scale * 1.1
+        self._photo_x = int(center_x - PHOTO_WIDTH / 2)
+        self._photo_y = int(center_y - PHOTO_HEIGHT / 2)
 
     def load_template(self):
         self._template = PIL.Image.open(self._template_url)
