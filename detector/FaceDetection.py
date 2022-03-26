@@ -21,10 +21,3 @@ class FaceDetector:
         assert len(self.faces) == 1
         return self.faces[0]
 
-
-if __name__ == "__main__":
-    for path in ['christine_peterson.jpeg', 'judy_estrin.jpeg', 'tim_oreilly.jpeg', 'vint_cerf.jpeg']:
-        detector = FaceDetector(f'/Users/mzhelezin/Documents/projectLFMS/tests/assets/{path}')
-        detector.detect()
-        detector.show_img()
-

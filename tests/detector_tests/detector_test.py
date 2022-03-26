@@ -14,7 +14,7 @@ class ImgPathWithBbos:
 
 TEST_CASES = [
     ImgPathWithBbos(
-        img_path=f'{dir_path}/../assets/christine_peterson.jpeg',
+        img_path=f'{dir_path}/../assets/кристин.jpeg',
         result=(652, 231, 463, 463)),
     ImgPathWithBbos(
         img_path=f'{dir_path}/../assets/judy_estrin.jpeg',
