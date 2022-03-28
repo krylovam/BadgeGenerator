@@ -26,7 +26,7 @@ class Controller:
         self.constructor.show()
 
     def show_saver(self):
-        self.saver = Saver()
+        self.saver = Saver(self.constructor.badges)
         self.saver.ui.pushButton_start_over.clicked.connect(self.show_main_menu)
         self.constructor.close()
         self.saver.show()

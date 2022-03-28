@@ -117,6 +117,15 @@ class Badge:
         pixmap = pixmap.scaled(720, 480, QtCore.Qt.KeepAspectRatio)
         return pixmap
 
+    def get_photo(self):
+        return self._template_photo
+
+    def save_badge(self):
+        dir_path = os.path.dirname(__file__)
+        if not os.path.exists(f'{dir_path}/../ready-badges'):
+            os.makedirs(f'{dir_path}/../ready-badges')
+        self._template_photo.save(f'{dir_path}/../ready-badges/' + self._name + "_" + self._surname + "_badge.png")
+
     def translate_photo(self, shift_x, shift_y):
         self._photo_x += shift_x * 5
         self._photo_y += shift_y * 5
