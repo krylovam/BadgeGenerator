@@ -14,16 +14,16 @@ class ImgPathWithBbos:
 
 TEST_CASES = [
     ImgPathWithBbos(
-        img_path=f'{dir_path}/../assets/кристин.jpeg',
+        img_path=f'{dir_path}/../assets/photos/кристин_петерсон.jpeg',
         result=(652, 231, 463, 463)),
     ImgPathWithBbos(
-        img_path=f'{dir_path}/../assets/judy_estrin.jpeg',
+        img_path=f'{dir_path}/../assets/photos/judy_estrin.jpeg',
         result=(641, 226, 560, 560)),
     ImgPathWithBbos(
-        img_path=f'{dir_path}/../assets/tim_oreilly.jpeg',
+        img_path=f'{dir_path}/../assets/photos/tim_oreilly.jpeg',
         result=(482, 219, 573, 573)),
     ImgPathWithBbos(
-        img_path=f'{dir_path}/../assets/vint_cerf.jpeg',
+        img_path=f'{dir_path}/../assets/photos/vint_cerf.jpeg',
         result=(562, 110, 411, 411)),
 ]
 

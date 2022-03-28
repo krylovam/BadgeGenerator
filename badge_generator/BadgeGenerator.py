@@ -76,6 +76,9 @@ class Badge:
     def get_surname(self):
         return self._surname
 
+    def get_photo_coords(self):
+        return (self._photo_x, self._photo_y)
+
     def add_text(self):
         self._template = Image.open(self._template_url)
         symbol_len = max(len(self._name), len(self._surname))
