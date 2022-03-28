@@ -1,11 +1,12 @@
 import cv2
+import numpy as np
 import os
 
 class FaceDetector:
     def __init__(self, path):
         dir_path = os.path.dirname(__file__)
         self.face_cascade = cv2.CascadeClassifier(f'{dir_path}/utils/cascade.xml')
-        self.img = cv2.imread(path)
+        self.img = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
         self.gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
 
     def detect(self):
