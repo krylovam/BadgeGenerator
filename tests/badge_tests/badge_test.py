@@ -5,10 +5,7 @@ from badge_generator.BadgeGenerator import Badge
 import os
 
 dir_path = os.path.dirname(__file__)
-print(os.listdir(f'{dir_path}/../../assets'))
-print(os.getcwd())
-os.chdir("../../desings")
-print(os.getcwd())
+os.chdir("../../assets")
 @dataclasses.dataclass
 class BadgeChecker:
     file_path: str

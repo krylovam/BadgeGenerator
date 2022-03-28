@@ -15,7 +15,6 @@ class Constructor(QtWidgets.QMainWindow):
         super(Constructor, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-
         self.init_badges(urls, template_url)
         self.curr_badge_id = 0
         self.badge = self.badges[self.curr_badge_id ]
@@ -58,7 +57,7 @@ class Constructor(QtWidgets.QMainWindow):
 
     def btn_next_clicked(self):
         self.curr_badge_id += 1
-        if self.curr_badge_id == len(self.badges):
+        if self.curr_badge_id >= len(self.badges):
             return
         self.ui.verticalLayout.itemAt(0).widget().deleteLater()
         self.badge = self.badges[self.curr_badge_id]
