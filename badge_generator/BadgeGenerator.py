@@ -86,7 +86,8 @@ class Badge:
             self._fontsize = 60
             self._name_coords = (570, 100)
             self._surname_coords = (570, 2/25)
-        font = ImageFont.truetype('../assets/Montserrat.ttf', size=self._fontsize)
+        dir_path = os.path.dirname(__file__)
+        font = ImageFont.truetype(f'{dir_path}/../assets/Montserrat.ttf', size=self._fontsize)
         draw_name = ImageDraw.Draw(self._template)
         draw_name.text(
             self._name_coords,

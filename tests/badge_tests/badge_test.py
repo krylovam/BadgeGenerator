@@ -5,7 +5,6 @@ from badge_generator.BadgeGenerator import Badge
 import os
 
 dir_path = os.path.dirname(__file__)
-os.chdir("../../assets")
 @dataclasses.dataclass
 class BadgeChecker:
     file_path: str
