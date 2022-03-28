@@ -49,8 +49,14 @@ class Badge:
         self._photo = self._photo.resize((new_size_x, new_size_y))
         center_x *= scale
         center_y *= scale * 1.1
-        self._photo_x = int(center_x - PHOTO_WIDTH / 2)
-        self._photo_y = int(center_y - PHOTO_HEIGHT / 2)
+        if center_x < PHOTO_WIDTH / 2:
+            self._photo_x = 0
+        else:
+            self._photo_x = int(center_x - PHOTO_WIDTH / 2)
+        if center_y < PHOTO_HEIGHT / 2:
+            self._photo_y = 0
+        else:
+            self._photo_y = int(center_y - PHOTO_HEIGHT / 2)
 
     def load_template(self):
         self._template = PIL.Image.open(self._template_url)
@@ -98,7 +104,7 @@ class Badge:
         self._template_photo = self._template.copy()
         self._photo_cropped = self._photo.crop((self._photo_x, self._photo_y,
                                                self._photo_x + 341, self._photo_y + 469))
-        self._template_photo.paste(self._photo_cropped, (94, 92), self._photo_cropped)
+        self._template_photo.paste(self._photo_cropped, (94, 92))
 
     def get_badge(self):
         image = self._template_photo.convert("RGBA")
