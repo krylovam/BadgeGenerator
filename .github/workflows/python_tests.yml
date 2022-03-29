@@ -7,8 +7,8 @@ on:
     branches: [ main, detector_tests, badge-generator ]
 
 jobs:
-  build:
-
+  testing:
+    
     runs-on: ubuntu-latest
 
     steps:
@@ -25,3 +25,27 @@ jobs:
     - name: Test with pytest
       run: |
         python3 -m pytest
+
+  build_and_deploy:
+    needs: testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+      - name: Install dependencies and build 
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install opencv-python
+          pip3 install pyinstaller
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pyinstaller -F design/application_controller.py
+      
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: application
+          path: |
+            dist
