@@ -1,5 +1,8 @@
+import sys
+import os
+sys.path.append(os.path.dirname(__file__) + '/..')
 from badge_generator.BadgeGenerator import Badge
-from desings.constructor import Ui_MainWindow
+from constructor import Ui_MainWindow
 
 import glob
 import sys

@@ -1,4 +1,4 @@
-from desings.saver import Ui_MainWindow
+from saver import Ui_MainWindow
 
 from PyQt5 import QtWidgets
 from pdf_output import images_to_pdf

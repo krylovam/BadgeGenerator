@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, uic
-from desings.menu_window import Ui_MainWindow
+from menu_window import Ui_MainWindow
 import sys
 import os
 import os.path
