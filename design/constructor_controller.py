@@ -23,7 +23,6 @@ class Constructor(QtWidgets.QMainWindow):
         self.badge = self.badges[self.curr_badge_id ]
         self.badge_label = QLabel()
         self.badge_label.setPixmap(self.badge.get_badge())
-
         self.ui.verticalLayout.addWidget(self.badge_label)
         self.ui.pushButton_up.clicked.connect(self.btn_up_clicked)
         self.ui.pushButton_down.clicked.connect(self.btn_down_clicked)

@@ -13,7 +13,7 @@ class FilesData(object):
     def set_files_names(self, directory):
         self.files_names = []
         frames = Path(directory)
-        types = ['*.png', '*.jpeg']
+        types = ['*.png', '*.jpeg', '*.jpg']
         for type in types:
             for file in frames.glob(type):
                 self.files_names.append(str(file))

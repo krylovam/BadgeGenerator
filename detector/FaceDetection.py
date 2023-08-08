@@ -19,6 +19,5 @@ class FaceDetector:
         cv2.waitKey()
 
     def get_boxes(self):
-        assert len(self.faces) == 1
         return self.faces[0]
 

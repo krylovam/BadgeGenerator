@@ -1,0 +1,1 @@
+from badge_generator import BadgeGenerator
