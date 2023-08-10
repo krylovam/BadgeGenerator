@@ -18,8 +18,8 @@ class Badge:
         self._name = ''
         self._surname = ''
         self._fontsize = 26
-        self._name_coord_y = 323
-        self._surname_coord_y = 353
+        self._name_coord_y = 338
+        self._surname_coord_y = 403
         self._photo_x = 0
         self._photo_y = 0
         self._scale = 1.0
@@ -37,7 +37,7 @@ class Badge:
         self._url = self._url.replace('\\', '/')
         tmp = re.split('/', self._url)[-1]
         tmp = tmp.split('.')[0]
-        surname, name = tmp.split(' ')
+        surname, name = tmp.split('_')
         self._name = name.title()
         self._surname = surname.title()
 
@@ -84,30 +84,29 @@ class Badge:
 
     def add_text(self):
         self.load_template()
-        name_len = len(self._name)
-        surname_len = len(self._surname)
-
-        symbol_len = max(len(self._name), len(self._surname))
-        # if symbol_len > 11:
-            # self._fontsize = 20
-            # self._name_coords = (110, 975)
-            # self._surname_coords = (110, 885)
-        font = ImageFont.truetype('../assets/Montserrat.ttf', size=self._fontsize)
+        name_fontsize = self._fontsize
+        surname_fontsize = self._fontsize
+        if len(self._surname):
+            name_fontsize = 20
+        if len(self._name):
+            surname_fontsize = 20
+        name_font = ImageFont.truetype('../assets/Montserrat.ttf', size=name_fontsize)
         draw_name = ImageDraw.Draw(self._template)
-        _, _, w, h = draw_name.textbbox((0, 0), self._name, font=font)
+        _, _, w, h = draw_name.textbbox((0, 0), self._surname, font=name_font)
         W, H = self._template.size
         draw_name.text(
             ((W-w)/2, self._name_coord_y),
-            self._name,
-            font=font,
+            self._surname,
+            font=name_font,
             fill=(255,255,255,255))
+        surname_font = ImageFont.truetype('../assets/Montserrat.ttf', size=surname_fontsize)
         draw_surname = ImageDraw.Draw(self._template)
-        _, _, w, h = draw_surname.textbbox((0, 0), self._surname, font=font)
+        _, _, w, h = draw_surname.textbbox((0, 0), self._name.upper(), font=surname_font)
         draw_surname.text(
             ((W-w)/2, self._surname_coord_y),
-            self._surname,
-            font=font,
-            fill=(255,255,255,255))
+            self._name.upper(),
+            font=surname_font,
+            fill=(0,0,0,255))
 
     def add_photo(self):
         self._template_photo = self._template.copy()

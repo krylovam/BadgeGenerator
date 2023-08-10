@@ -19,5 +19,7 @@ class FaceDetector:
         cv2.waitKey()
 
     def get_boxes(self):
+        if len(self.faces) == 0:
+            return 0, 0, 1000, 500
         return self.faces[0]
 
