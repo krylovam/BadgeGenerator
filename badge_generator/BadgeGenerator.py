@@ -6,8 +6,8 @@ from detector.FaceDetection import FaceDetector
 import numpy as np
 import os
 import re
-PHOTO_WIDTH = 168
-PHOTO_HEIGHT = 214
+PHOTO_WIDTH = 1290
+PHOTO_HEIGHT = 1470
 
 class Badge:
     def __init__(self, id, url, template_url):
@@ -17,9 +17,9 @@ class Badge:
         self._coords = {}
         self._name = ''
         self._surname = ''
-        self._fontsize = 26
-        self._name_coord_y = 338
-        self._surname_coord_y = 403
+        self._fontsize = 200
+        self._name_coord_y = 520
+        self._surname_coord_y = 780
         self._photo_x = 0
         self._photo_y = 0
         self._scale = 1.0
@@ -37,14 +37,14 @@ class Badge:
         self._url = self._url.replace('\\', '/')
         tmp = re.split('/', self._url)[-1]
         tmp = tmp.split('.')[0]
-        surname, name = tmp.split('_')
+        surname, name = tmp.split()
         self._name = name.title()
         self._surname = surname.title()
 
     def detect_face(self):
         detector = FaceDetector(self._url)
         detector.detect()
-        x, y, w, h = detector.get_boxes()
+        x, y, w, h = detector.get_boxes() # self._photo.size[0] / 2, self._photo.size[1] / 2, 1000, 2000 #
         center_x, center_y = x + w / 2, y + h / 2
         scale = 0.5 * PHOTO_WIDTH / w
         new_size_x = round(self._photo.size[0] * scale)
@@ -86,25 +86,25 @@ class Badge:
         self.load_template()
         name_fontsize = self._fontsize
         surname_fontsize = self._fontsize
-        if len(self._surname):
-            name_fontsize = 20
-        if len(self._name):
-            surname_fontsize = 20
+        # if len(self._surname):
+        #     name_fontsize = 20
+        # if len(self._name):
+        #     surname_fontsize = 20
         name_font = ImageFont.truetype('../assets/Montserrat.ttf', size=name_fontsize)
         draw_name = ImageDraw.Draw(self._template)
         _, _, w, h = draw_name.textbbox((0, 0), self._surname, font=name_font)
         W, H = self._template.size
         draw_name.text(
-            ((W-w)/2, self._name_coord_y),
+            (240, self._surname_coord_y),
             self._surname,
             font=name_font,
-            fill=(255,255,255,255))
+            fill=(0,0,0,255))
         surname_font = ImageFont.truetype('../assets/Montserrat.ttf', size=surname_fontsize)
         draw_surname = ImageDraw.Draw(self._template)
         _, _, w, h = draw_surname.textbbox((0, 0), self._name.upper(), font=surname_font)
         draw_surname.text(
-            ((W-w)/2, self._surname_coord_y),
-            self._name.upper(),
+            (240, self._name_coord_y),
+            self._name,
             font=surname_font,
             fill=(0,0,0,255))
 
@@ -112,7 +112,7 @@ class Badge:
         self._template_photo = self._template.copy()
         self._photo_cropped = self._photo.crop((self._photo_x, self._photo_y,
                                                self._photo_x + PHOTO_WIDTH, self._photo_y + PHOTO_HEIGHT))
-        self._template_photo.paste(self._photo_cropped, (86, 73)) # mask=self._photo_cropped)
+        self._template_photo.paste(self._photo_cropped, (285, 1102)) # mask=self._photo_cropped)
 
     def get_badge(self):
         image = self._template_photo.convert("RGBA")
