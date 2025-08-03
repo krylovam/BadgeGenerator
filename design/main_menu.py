@@ -1,30 +1,25 @@
-from PyQt5 import QtWidgets, uic
+from PyQt6 import QtWidgets
 from menu_window import Ui_MainWindow
-import sys
+import glob
 import os
-import os.path
-from pathlib import Path
 
 class FilesData(object):
     def __init__(self):
-        self.files_names = []
-        self.template_name = ""
+        self.file_paths = []
+        self.template_path = ""
 
-    def set_files_names(self, directory):
-        self.files_names = []
-        frames = Path(directory)
-        types = ['*.png', '*.jpeg']
-        for type in types:
-            for file in frames.glob(type):
-                self.files_names.append(str(file))
+    def set_file_paths(self, directory):
+        patterns = ['*.png', '*.jpeg', '*.jpg']
+        self.file_paths = []
+        for pattern in patterns:
+            full_pattern = os.path.join(directory, pattern)
+            matching_files = glob.glob(full_pattern)
+            self.file_paths += [str(path) for path in matching_files]
 
+    def set_template_path(self, template_path):
+        if template_path.endswith(('.png')):
+            self.template_path = template_path
 
-    def set_template_name(self, template_name):
-        if template_name.endswith(('.png')):
-            self.template_name = template_name
-
-    def print_files_data(self):
-        print(self.files_names , "\n-----------\n", self.template_name)
 
 class MainMenu(QtWidgets.QMainWindow):
     def __init__(self):
@@ -41,24 +36,22 @@ class MainMenu(QtWidgets.QMainWindow):
 
     def ObjectToArray(self):
         directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory")
-        self.DataDirectories.set_files_names(directory)
+        self.DataDirectories.set_file_paths(directory)
         self.CheckErrors()
 
     def DownloadTemplateName(self):
         filename = QtWidgets.QFileDialog.getOpenFileName(self, "Select file")
-        self.DataDirectories.set_template_name(filename[0])
+        self.DataDirectories.set_template_path(filename[0])
         self.CheckErrors()
 
     def CheckErrors(self):
-        if len(self.DataDirectories.files_names) == 0:
+        if len(self.DataDirectories.file_paths) == 0:
             self.ui.error_label.setText("В выбранной папке нет фотографий")
             self.ui.pushButton_3.setEnabled(False)
-        elif self.DataDirectories.template_name == "":
+        elif self.DataDirectories.template_path == "":
             self.ui.error_label.setText("Выбранный шаблон не png файл")
             self.ui.pushButton_3.setEnabled(False)
         else:
             self.ui.error_label.setText("")
             self.ui.pushButton_3.setEnabled(True)
 
-    def GetListOfFiles(self):
-        return files_names

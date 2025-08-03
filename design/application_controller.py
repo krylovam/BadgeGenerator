@@ -2,7 +2,7 @@ from constructor_controller import Constructor
 from saver_controller import Saver
 from main_menu import MainMenu
 import sys
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtWidgets
 
 class Controller:
 
@@ -19,8 +19,8 @@ class Controller:
         self.main_menu.show()
 
     def show_constructor(self):
-        self.constructor = Constructor(self.main_menu.DataDirectories.files_names,
-                                       self.main_menu.DataDirectories.template_name)
+        self.constructor = Constructor(self.main_menu.DataDirectories.file_paths,
+                                       self.main_menu.DataDirectories.template_path)
         self.constructor.ui.pushButton_finish.clicked.connect(self.show_saver)
         self.main_menu.close()
         self.constructor.show()
@@ -35,7 +35,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     controller = Controller()
     controller.show_main_menu()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 if __name__ == '__main__':
     main()

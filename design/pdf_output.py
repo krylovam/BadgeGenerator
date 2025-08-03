@@ -16,7 +16,7 @@ def images_to_pdf(images_list, path_to_upload):
             for y in range(1, IMAGE_ROW + 1):
                 for x in range(1, IMAGE_COLUMN + 1):
                     if len(opened_images) > 0:
-                        from_image = opened_images.pop().resize((IMAGE_SIZE_W, IMAGE_SIZE_H), Image.ANTIALIAS)
+                        from_image = opened_images.pop().resize((IMAGE_SIZE_W, IMAGE_SIZE_H), Image.LANCZOS)
                         to_image.paste(from_image, ((x - 1) * IMAGE_SIZE_W, (y - 1) * IMAGE_SIZE_H))
             converted_images.append(to_image.convert('RGB'))
         converted_images[0].save(path_to_upload, save_all=True, append_images=converted_images[1:])

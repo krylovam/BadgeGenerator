@@ -4,14 +4,8 @@ sys.path.append(os.path.dirname(__file__) + '/..')
 from badge_generator.BadgeGenerator import Badge
 from constructor import Ui_MainWindow
 
-import glob
-import sys
-from PIL import Image, ImageOps, ImageFilter
-from PIL.ImageQt import ImageQt
-from PyQt5.Qt import *
-from PyQt5 import QtWidgets, uic
-from PyQt5.QtWidgets import (QWidget, QPushButton,
-    QHBoxLayout, QVBoxLayout, QApplication)
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QLabel
 
 class Constructor(QtWidgets.QMainWindow):
     def __init__(self, urls, template_url):

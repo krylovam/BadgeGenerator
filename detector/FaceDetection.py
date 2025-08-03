@@ -3,14 +3,15 @@ import numpy as np
 import os
 
 class FaceDetector:
-    def __init__(self, path):
+    def __init__(self, image):
         dir_path = os.path.dirname(__file__)
         self.face_cascade = cv2.CascadeClassifier(f'{dir_path}/utils/cascade.xml')
-        self.img = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
-        self.gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        pil_image = image.convert('RGB')
+        self.img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+        # self.gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
 
     def detect(self):
-        self.faces = self.face_cascade.detectMultiScale(self.gray, 1.1, 12)
+        self.faces = self.face_cascade.detectMultiScale(self.img, 1.1, 12)
 
     def show_img(self):
         for (x, y, w, h) in self.faces:
@@ -19,6 +20,5 @@ class FaceDetector:
         cv2.waitKey()
 
     def get_boxes(self):
-        assert len(self.faces) == 1
+        # assert len(self.faces) == 1
         return self.faces[0]
-

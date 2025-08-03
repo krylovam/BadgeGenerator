@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -25,13 +25,13 @@ class Ui_MainWindow(object):
         self.pushButton_minus.setGeometry(QtCore.QRect(980, 100, 64, 64))
         self.pushButton_minus.setObjectName("pushButton_minus")
         self.pushButton_next = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_next.setGeometry(QtCore.QRect(1012.5, 450, 96.5, 64))
+        self.pushButton_next.setGeometry(QtCore.QRect(1012, 450, 96, 64))
         self.pushButton_next.setObjectName("pushButton_next")
         self.pushButton_finish = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_finish.setGeometry(QtCore.QRect(915, 600, 256, 64))
         self.pushButton_finish.setObjectName("pushButton_finish")
         self.pushButton_back = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_back.setGeometry(QtCore.QRect(915, 450, 96.5, 64))
+        self.pushButton_back.setGeometry(QtCore.QRect(915, 450, 96, 64))
         self.pushButton_back.setObjectName("pushButton_back")
         self.verticalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
         self.verticalLayoutWidget.setGeometry(QtCore.QRect(20, 20, 720, 480))
