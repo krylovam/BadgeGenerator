@@ -4,6 +4,7 @@ from PyQt6 import QtCore
 from PyQt6.QtGui import QPixmap, QImage
 from rembg import remove
 from detector.FaceDetection import FaceDetector
+import numpy as np
 import os
 import re
 PHOTO_WIDTH = 341
@@ -18,8 +19,8 @@ class Badge:
         self._name = ''
         self._surname = ''
         self._fontsize = 75
-        self._name_coords = (600, 100)
-        self._surname_coords = (600, 225)
+        self._name_coords = (40, 125)
+        self._surname_coords = (40, 225)
         self._photo_x = 140
         self._photo_y = 180
         self._scale = 1.0
@@ -34,7 +35,7 @@ class Badge:
         self._path = self._path.replace('\\', '/')
         tmp = re.split('/', self._path)[-1]
         tmp = tmp.split('.')[0]
-        surname, name = tmp.split()
+        surname, name = tmp.split()[0], tmp.split()[1]
         self._name = name.title()
         self._surname = surname.title()
 
@@ -43,7 +44,7 @@ class Badge:
         detector.detect()
         x, y, w, h = detector.get_boxes()
         center_x, center_y = x + w / 2, y + h / 2
-        scale = 0.5 * PHOTO_WIDTH / w
+        scale =  0.85 * PHOTO_WIDTH / w
         new_size_x = round(self._photo_wo_bg.size[0] * scale)
         new_size_y = round(self._photo_wo_bg.size[1] * scale)
         self._photo_wo_bg = self._photo_wo_bg.resize((new_size_x, new_size_y))
@@ -52,11 +53,11 @@ class Badge:
         if center_x < PHOTO_WIDTH / 2:
             self._photo_x = 0
         else:
-            self._photo_x = int(center_x - PHOTO_WIDTH / 2)
+            self._photo_x = int(center_x - PHOTO_WIDTH / 2) - 250
         if center_y < PHOTO_HEIGHT / 2:
             self._photo_y = 0
         else:
-            self._photo_y = int(center_y - PHOTO_HEIGHT / 2)
+            self._photo_y = int(center_y - PHOTO_HEIGHT / 2) - 250
 
     def load_template(self):
         self._template = Image.open(self._template_path)
@@ -66,6 +67,8 @@ class Badge:
     
     def remove_background(self):
         self._photo_wo_bg = remove(self._photo)
+        self._photo_wo_bg = self._photo_wo_bg.convert("RGBA")
+        # self._photo.show()
 
     def set_coords(self, coords):
         self._coords = coords
@@ -84,11 +87,12 @@ class Badge:
 
     def add_text(self):
         self._template = Image.open(self._template_path)
+        print(self._name, self._surname)
         symbol_len = max(len(self._name), len(self._surname))
         if symbol_len > 11:
             self._fontsize = 60
-            self._name_coords = (570, 100)
-            self._surname_coords = (570, 2/25)
+            self._name_coords = (40, 125)
+            self._surname_coords = (40, 225)
         dir_path = os.path.dirname(__file__)
         font = ImageFont.truetype(f'{dir_path}/../assets/Montserrat.ttf', size=self._fontsize)
         draw_name = ImageDraw.Draw(self._template)
@@ -110,9 +114,9 @@ class Badge:
     def add_photo(self):
         self._template_photo = self._template.copy()
         self._photo_cropped = self._photo_wo_bg.crop((self._photo_x, self._photo_y,
-                                               self._photo_x + 341, self._photo_y + 469))
-        self._photo_cropped.show()
-        self._template_photo.paste(self._photo_cropped, (94, 92))
+                                               self._photo_x + 800, self._photo_y + 1000))
+        # self._photo_cropped.show()
+        self._template_photo.paste(self._photo_cropped, (130, 300), self._photo_cropped)
 
     def get_badge(self):
         image = self._template_photo.convert("RGBA")
@@ -142,7 +146,7 @@ class Badge:
         else:
             scale = 0.95238095
         new_size = (round(size[0] * scale), round(size[1] * scale ))
-        self._photo_wo_bg = self._photo_wo_bg.resize(new_size, Image.ANTIALIAS)
+        self._photo_wo_bg = self._photo_wo_bg.resize(new_size, Image.LANCZOS)
         self._photo_x *= scale
         self._photo_y *= scale
         self.add_photo()
