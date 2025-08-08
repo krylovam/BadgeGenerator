@@ -19,9 +19,9 @@ class Badge:
         self._name = ''
         self._surname = ''
         self._fontsize = 85
-        self._name_coords = (40, 125)
-        self._surname_coords = (40, 210)
-        self._job_title_coords = (40, 325)
+        self._name_coords = (40, 150)
+        self._surname_coords = (40, 225)
+        # self._job_title_coords = (40, 325)
         self._photo_x = 140
         self._photo_y = 180
         self._scale = 1.0
@@ -37,10 +37,10 @@ class Badge:
         tmp = re.split('/', self._path)[-1]
         tmp = tmp.split('.')[0]
         surname, name = tmp.split()[0], tmp.split()[1]
-        job_title = tmp.split()[2]
+        # job_title = tmp.split()[2]
         self._name = name#.title()
         self._surname = surname#.title()
-        self._job_title = job_title.lower()
+        # self._job_title = job_title.lower()
 
     def detect_face(self):
         detector = FaceDetector(self._photo_wo_bg)
@@ -93,13 +93,13 @@ class Badge:
         print(self._name, self._surname)
         symbol_len = max(len(self._name), len(self._surname))
         if symbol_len > 11:
-            self._fontsize = 60
-            self._name_coords = (40, 125)
+            self._fontsize = 85
+            self._name_coords = (40, 150)
             self._surname_coords = (40, 225)
-            self._job_title_coords = (40, 350)
+            #self._job_title_coords = (40, 350)
         dir_path = os.path.dirname(__file__)
         font = ImageFont.truetype(f'{dir_path}/../assets/Montserrat-SemiBold.ttf', size=self._fontsize)
-        font_job_title = ImageFont.truetype(f'{dir_path}/../assets/Montserrat-SemiBold.ttf', size=0.5 *self._fontsize)
+        #font_job_title = ImageFont.truetype(f'{dir_path}/../assets/Montserrat-SemiBold.ttf', size=0.5 *self._fontsize)
         draw_name = ImageDraw.Draw(self._template)
         draw_name.text(
             self._name_coords,
@@ -112,12 +112,12 @@ class Badge:
             self._surname,
             font=font,
             fill='#3a393d')
-        draw_job_title = ImageDraw.Draw(self._template)
-        draw_job_title.text(
-            self._job_title_coords,
-            self._job_title,
-            font=font_job_title,
-            fill='#8b171a')
+        # draw_job_title = ImageDraw.Draw(self._template)
+        # draw_job_title.text(
+        #     self._job_title_coords,
+        #     self._job_title,
+        #     font=font_job_title,
+        #     fill='#8b171a')
 
     def load_photo(self):
         self._photo = Image.open(self._path)
@@ -125,9 +125,9 @@ class Badge:
     def add_photo(self):
         self._template_photo = self._template.copy()
         self._photo_cropped = self._photo_wo_bg.crop((self._photo_x, self._photo_y,
-                                               self._photo_x + 800, self._photo_y + 1000))
+                                               self._photo_x + 1000, self._photo_y + 1000))
         # self._photo_cropped.show()
-        self._template_photo.paste(self._photo_cropped, (130, 300), self._photo_cropped)
+        self._template_photo.paste(self._photo_cropped, (80, 350), self._photo_cropped)
 
     def get_badge(self):
         image = self._template_photo.convert("RGBA")
