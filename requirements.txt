@@ -1,3 +1,4 @@
-Pillow==9.0.1
-PyQt5==5.15.6
-pytest==7.1.1
+Pillow>=9.2
+PyQt5>=5.15.6
+opencv-python>=4.5,<5
+pytest>=7.1

@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+ready-badges/
+.venv/
+venv/
+docs/demo_badge.png
+docs/demo_pdf_page.png

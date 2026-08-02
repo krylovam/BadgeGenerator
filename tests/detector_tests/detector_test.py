@@ -1,10 +1,13 @@
-import pytest
-import typing as tp
 import dataclasses
-from detector.FaceDetection import FaceDetector
 import os
+import typing as tp
+
+import pytest
+
+from detector.FaceDetection import FaceDetector
 
 dir_path = os.path.dirname(__file__)
+
 
 @dataclasses.dataclass
 class ImgPathWithBbos:
@@ -32,4 +35,5 @@ TEST_CASES = [
 def test_bboxes_on_image(t: ImgPathWithBbos) -> None:
     detector = FaceDetector(t.img_path)
     detector.detect()
-    assert (detector.get_boxes() == t.result).all()
+    assert detector.get_boxes() == t.result
+    assert detector.has_faces()

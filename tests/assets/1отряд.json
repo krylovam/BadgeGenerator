@@ -1,0 +1,38 @@
+{
+  "template_file": "1отряд.png",
+  "badge_size_mm": [100, 70],
+  "dpi": 300,
+  "text_fields": [
+    {
+      "id": "name",
+      "label": "Имя",
+      "anchor": [240, 520],
+      "align": "left",
+      "font": "assets/Montserrat.ttf",
+      "font_size": 200,
+      "color": [0, 0, 0],
+      "max_width": 700,
+      "auto_shrink": true,
+      "uppercase": false
+    },
+    {
+      "id": "surname",
+      "label": "Фамилия",
+      "anchor": [240, 780],
+      "align": "left",
+      "font": "assets/Montserrat.ttf",
+      "font_size": 200,
+      "color": [0, 0, 0],
+      "max_width": 700,
+      "auto_shrink": true,
+      "uppercase": false
+    }
+  ],
+  "photo": {
+    "place_on_badge": [285, 1102, 1290, 1470],
+    "crop_size": [1290, 1470],
+    "face_scale": 0.5,
+    "face_offset_y": 1.1,
+    "remove_background": false
+  }
+}

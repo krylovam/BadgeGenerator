@@ -1,65 +1,153 @@
+"""Интерфейс конструктора: настройка фото на бейдже."""
+from __future__ import annotations
+
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+
+class _PreviewLabel(QtWidgets.QLabel):
+    """Метка-превью с перетаскиванием мышью и зумом колёсиком."""
+
+    translated = QtCore.pyqtSignal(int, int)  # сдвиг в координатах бейджа
+    zoomed = QtCore.pyqtSignal(float)
+
+    def __init__(self):
+        super().__init__()
+        self._scale = 1.0
+        self._last: QtCore.QPoint | None = None
+        self.setMouseTracking(True)
+        self.setMinimumSize(720, 480)
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.setStyleSheet("background-color: #f2f2f2;")
+
+    def set_scale(self, scale: float) -> None:
+        """Соотношение пикселей pixmap к пикселям бейджа."""
+        self._scale = scale
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        if event.button() == QtCore.Qt.LeftButton:
+            self._last = event.pos()
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+        if self._last is not None and event.buttons() & QtCore.Qt.LeftButton:
+            dx = event.pos().x() - self._last.x()
+            dy = event.pos().y() - self._last.y()
+            self._last = event.pos()
+            if dx or dy:
+                self.translated.emit(round(dx / self._scale), round(dy / self._scale))
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
+        self._last = None
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
+        factor = 1.05 if event.angleDelta().y() > 0 else 0.95238095
+        self.zoomed.emit(factor)
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.setMinimumSize(1200, 700)
+        MainWindow.setMinimumSize(1200, 760)
+
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        self.pushButton_up = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_up.setGeometry(QtCore.QRect(980, 180, 64, 64))
-        self.pushButton_up.setObjectName("pushButton_up")
-        self.pushButton_down = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_down.setGeometry(QtCore.QRect(980, 245, 64, 64))
-        self.pushButton_down.setObjectName("pushButton_down")
-        self.pushButton_right = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_right.setGeometry(QtCore.QRect(1045, 212, 64, 64))
-        self.pushButton_right.setObjectName("pushButton_right")
-        self.pushButton_left = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_left.setGeometry(QtCore.QRect(915, 212, 64, 64))
-        self.pushButton_left.setObjectName("pushButton_left")
-        self.pushButton_plus = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_plus.setGeometry(QtCore.QRect(980, 35, 64, 64))
-        self.pushButton_plus.setObjectName("pushButton_plus")
-        self.pushButton_minus = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_minus.setGeometry(QtCore.QRect(980, 100, 64, 64))
-        self.pushButton_minus.setObjectName("pushButton_minus")
-        self.pushButton_next = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_next.setGeometry(QtCore.QRect(1012.5, 450, 96.5, 64))
-        self.pushButton_next.setObjectName("pushButton_next")
-        self.pushButton_finish = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_finish.setGeometry(QtCore.QRect(915, 600, 256, 64))
-        self.pushButton_finish.setObjectName("pushButton_finish")
-        self.pushButton_back = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton_back.setGeometry(QtCore.QRect(915, 450, 96.5, 64))
-        self.pushButton_back.setObjectName("pushButton_back")
-        self.verticalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(20, 20, 720, 480))
-        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
-        self.verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
-        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        self.verticalLayout.setObjectName("verticalLayout")
         MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 683, 22))
-        self.menubar.setObjectName("menubar")
-        MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QtWidgets.QStatusBar(MainWindow)
-        self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
+
+        root = QtWidgets.QVBoxLayout(self.centralwidget)
+        root.setContentsMargins(16, 16, 16, 16)
+        root.setSpacing(10)
+
+        # --- шапка ----------------------------------------------------- #
+        header = QtWidgets.QHBoxLayout()
+        self.label_counter = QtWidgets.QLabel("Бейдж 0 из 0")
+        self.label_counter.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.label_names = QtWidgets.QLabel("")
+        self.label_names.setStyleSheet("font-size: 14px; color: #555;")
+        header.addWidget(self.label_counter)
+        header.addWidget(self.label_names)
+        header.addStretch(1)
+        self.check_apply_all = QtWidgets.QCheckBox("Применять правки ко всем бейджам")
+        self.btn_undo = QtWidgets.QPushButton("Отменить (Ctrl+Z)")
+        header.addWidget(self.check_apply_all)
+        header.addWidget(self.btn_undo)
+        root.addLayout(header)
+
+        # --- превью ----------------------------------------------------- #
+        self.preview_label = _PreviewLabel()
+        root.addWidget(self.preview_label, stretch=1)
+
+        # --- панель управления ----------------------------------------- #
+        controls = QtWidgets.QHBoxLayout()
+        controls.setSpacing(10)
+
+        move_box = QtWidgets.QGroupBox("Положение фото")
+        move_grid = QtWidgets.QGridLayout(move_box)
+        self.btn_up = QtWidgets.QPushButton("▲")
+        self.btn_down = QtWidgets.QPushButton("▼")
+        self.btn_left = QtWidgets.QPushButton("◀")
+        self.btn_right = QtWidgets.QPushButton("▶")
+        for b in (self.btn_up, self.btn_down, self.btn_left, self.btn_right):
+            b.setFixedSize(44, 44)
+        move_grid.addWidget(self.btn_up, 0, 1)
+        move_grid.addWidget(self.btn_left, 1, 0)
+        move_grid.addWidget(self.btn_right, 1, 2)
+        move_grid.addWidget(self.btn_down, 2, 1)
+        controls.addWidget(move_box)
+
+        zoom_box = QtWidgets.QGroupBox("Масштаб")
+        zoom_v = QtWidgets.QVBoxLayout(zoom_box)
+        self.btn_zoom_in = QtWidgets.QPushButton("+")
+        self.btn_zoom_out = QtWidgets.QPushButton("−")
+        for b in (self.btn_zoom_in, self.btn_zoom_out):
+            b.setFixedSize(44, 44)
+        zoom_v.addWidget(self.btn_zoom_in)
+        zoom_v.addWidget(self.btn_zoom_out)
+        controls.addWidget(zoom_box)
+
+        name_box = QtWidgets.QGroupBox("Имя на бейдже")
+        name_form = QtWidgets.QFormLayout(name_box)
+        self.edit_surname = QtWidgets.QLineEdit()
+        self.edit_name = QtWidgets.QLineEdit()
+        self.edit_surname.setPlaceholderText("Фамилия")
+        self.edit_name.setPlaceholderText("Имя")
+        name_form.addRow("Фамилия:", self.edit_surname)
+        name_form.addRow("Имя:", self.edit_name)
+        self.btn_apply_name = QtWidgets.QPushButton("Применить")
+        name_form.addRow("", self.btn_apply_name)
+        controls.addWidget(name_box)
+
+        # дополнительные текстовые поля из конфига шаблона
+        self.extra_fields_box = QtWidgets.QGroupBox("Доп. поля")
+        self.extra_fields_form = QtWidgets.QFormLayout(self.extra_fields_box)
+        controls.addWidget(self.extra_fields_box)
+        self.extra_fields_box.hide()
+
+        controls.addStretch(1)
+        root.addLayout(controls)
+
+        # --- низ -------------------------------------------------------- #
+        bottom = QtWidgets.QHBoxLayout()
+        self.btn_back = QtWidgets.QPushButton("← Назад")
+        self.btn_next = QtWidgets.QPushButton("Дальше →")
+        for b in (self.btn_back, self.btn_next):
+            b.setFixedHeight(40)
+        bottom.addWidget(self.btn_back)
+        bottom.addWidget(self.btn_next)
+        bottom.addStretch(1)
+        self.btn_finish = QtWidgets.QPushButton("Закончить редактирование")
+        self.btn_finish.setFixedHeight(40)
+        bottom.addWidget(self.btn_finish)
+        root.addLayout(bottom)
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.pushButton_up.setText(_translate("MainWindow", "вверх"))
-        self.pushButton_down.setText(_translate("MainWindow", "вниз"))
-        self.pushButton_right.setText(_translate("MainWindow", "вправо"))
-        self.pushButton_left.setText(_translate("MainWindow", "влево"))
-        self.pushButton_plus.setText(_translate("MainWindow", "+"))
-        self.pushButton_minus.setText(_translate("MainWindow", "-"))
-        self.pushButton_next.setText(_translate("MainWindow", "Дальше"))
-        self.pushButton_back.setText(_translate("MainWindow", "Назад"))
-        self.pushButton_finish.setText(_translate("MainWindow", "Закончить редактирование"))
+        MainWindow.setWindowTitle("Настройка фото на бейджах")
+        self.btn_up.setToolTip("Сдвинуть фото вверх")
+        self.btn_down.setToolTip("Сдвинуть фото вниз")
+        self.btn_left.setToolTip("Сдвинуть фото влево")
+        self.btn_right.setToolTip("Сдвинуть фото вправо")
+        self.btn_zoom_in.setToolTip("Увеличить фото")
+        self.btn_zoom_out.setToolTip("Уменьшить фото")
+        self.btn_finish.setText("Закончить редактирование")
