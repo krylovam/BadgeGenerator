@@ -94,6 +94,8 @@ def test_font_resolution() -> None:
     ("o_brien_kevin.jpeg", ("O", "Brien Kevin")),
     ("безразделителя.jpg", ("Безразделителя", "")),
     ("пустой.jpg", ("Пустой", "")),
+    ("фролова_арина_2_10.jpg", ("Фролова", "Арина")),
+    ("Фролова Арина Сергеевна 2 10.jpg", ("Фролова", "Арина Сергеевна")),
 ])
 def test_parse_name_from_filename(filename: str, expected: tuple) -> None:
     assert parse_name_from_filename(filename) == expected

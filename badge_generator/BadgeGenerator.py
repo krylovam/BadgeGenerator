@@ -26,11 +26,15 @@ def parse_name_from_filename(url: str) -> Tuple[str, str]:
     """Разбирает имя и фамилию из имени файла.
 
     Формат: ``<фамилия>[_<имя>...]``, разделители — пробелы, '_' или '-'.
-    Первый токен считается фамилией, остальные — именем.
-    Пример: ``кристин_петерсон.jpeg`` -> (surname='Кристин', name='Петерсон').
+    Хвостовые токены, состоящие только из цифр (класс, номер и т.п.),
+    отбрасываются. Пример: ``кристин_петерсон.jpeg`` ->
+    (surname='Кристин', name='Петерсон'); ``Фролова Арина 2 10.jpg`` ->
+    (surname='Фролова', name='Арина').
     """
     base = Path(str(url).replace("\\", "/")).stem
     parts = [p for p in re.split(r"[_\-\s]+", base.strip()) if p]
+    while parts and parts[-1].isdigit():
+        parts.pop()
     if not parts:
         return "", ""
     surname = parts[0].title()

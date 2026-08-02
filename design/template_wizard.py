@@ -87,8 +87,13 @@ class TemplateWizard(QtWidgets.QDialog):
         if not config_loaded:
             QtWidgets.QMessageBox.information(
                 self, "Новый конфиг",
-                "Конфиг для этого макета не найден — созданы настройки по умолчанию.\n"
-                "Расставьте поля и фото на превью и нажмите «Сохранить».")
+                "Конфиг для этого макета не найден — созданы настройки по умолчанию.\n\n"
+                "Как настроить:\n"
+                "• над макетом выберите элемент (текст «Имя» / «Фамилия» / «Фото область»);\n"
+                "• кликните по макету — элемент встанет в точку клика;\n"
+                "• перетаскивайте его мышью; у области фото тяните синий уголок;\n"
+                "• справа задайте размер шрифта, размер бейджа в мм и др.;\n"
+                "• нажмите «Сохранить конфиг».")
 
     # ------------------------------------------------------------------ #
     # Построение интерфейса
@@ -99,7 +104,20 @@ class TemplateWizard(QtWidgets.QDialog):
 
         # --- левая часть: превью --------------------------------------- #
         left = QtWidgets.QVBoxLayout()
-        left.addWidget(QtWidgets.QLabel("Клик на превью — поставить элемент, перетаскивание — двигать:"))
+
+        header = QtWidgets.QHBoxLayout()
+        self.hint_label = QtWidgets.QLabel("")
+        self.hint_label.setWordWrap(True)
+        self.hint_label.setStyleSheet(
+            "background: #e8f0fe; color: #1e3a8a; border: 1px solid #bfdbfe;"
+            "border-radius: 8px; padding: 8px 12px; font-weight: 600;")
+        header.addWidget(self.hint_label, stretch=1)
+        self.btn_help = QtWidgets.QPushButton("?")
+        self.btn_help.setFixedSize(32, 32)
+        self.btn_help.setToolTip("Подробная инструкция")
+        header.addWidget(self.btn_help)
+        left.addLayout(header)
+
         self.preview_label = _PreviewLabel()
         self.preview_label.clicked_at.connect(self._on_preview_click)
         self.preview_label.moved.connect(self._on_preview_move)
@@ -230,6 +248,9 @@ class TemplateWizard(QtWidgets.QDialog):
         self.btn_remove_field.clicked.connect(self._remove_field)
         self.btn_cancel.clicked.connect(self.reject)
         self.btn_save.clicked.connect(self._save)
+        self.btn_help.clicked.connect(self._show_help)
+
+        self._update_hint()
 
         for spin in (self.spin_badge_w, self.spin_badge_h, self.spin_dpi):
             spin.valueChanged.connect(self._on_size_changed)
@@ -340,6 +361,45 @@ class TemplateWizard(QtWidgets.QDialog):
         kind, value = self.mode_combo.itemData(index)
         self._mode = value if kind == "field" else "photo"
         self._sync_field_controls()
+        self._update_hint()
+
+    def _update_hint(self) -> None:
+        """Подсказка над превью: что делать в текущем режиме."""
+        if self._mode == "photo":
+            self.hint_label.setText(
+                "Область фото: кликните по макету — левый верхний угол фото "
+                "встанет в точку клика. Затем тяните за синий уголок вниз-вправо, "
+                "чтобы растянуть область, или перетаскивайте область целиком.")
+        else:
+            field = self._current_field()
+            if field is not None:
+                self.hint_label.setText(
+                    f"Текстовое поле «{field.label}»: кликните по макету — "
+                    "текст будет начинаться в точке клика. Затем перетаскивайте "
+                    "поле мышью, чтобы подвинуть его. Размер шрифта настраивается "
+                    "справа в блоке «Текстовые поля».")
+
+    def _show_help(self) -> None:
+        QtWidgets.QMessageBox.information(
+            self, "Как настроить шаблон",
+            "1. Сверху над макетом выберите, что настраиваете: текстовое поле "
+            "(«Имя», «Фамилия») или «Фото область».\n"
+            "2. Кликните по макету — выбранный элемент встанет в точку клика "
+            "(для текста — его начало, для фото — левый верхний угол).\n"
+            "3. Перетаскивайте элемент мышью, чтобы двигать его. У области фото "
+            "есть синий уголок в правом нижнем углу — тяните его, чтобы менять "
+            "размер области.\n"
+            "4. Параметры выбранного элемента меняются в панели справа: "
+            "размер шрифта, выравнивание, цвет, «уменьшать шрифт, если не "
+            "влезает» — для текста; для фото — масштаб по лицу и др.\n"
+            "5. Укажите физический размер бейджа в миллиметрах (измерьте "
+            "линейкой ваш бейдж) — от него зависит раскладка в PDF.\n"
+            "6. Нажмите «Сохранить конфиг» — рядом с макетом появится "
+            "JSON-файл, и макет станет готов к использованию.\n\n"
+            "Подсказка: если у вас уже есть готовый бейдж (пример результата), "
+            "можно не расставлять ничего вручную — утилита "
+            "tools/derive_config.py сама определит координаты текста и фото "
+            "по сравнению макета и готового бейджа.")
 
     def _on_field_selected(self, row: int) -> None:
         if row < 0 or row >= len(self.template.text_fields):
