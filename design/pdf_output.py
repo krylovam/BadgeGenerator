@@ -28,7 +28,8 @@ def images_to_pdf(images_list, path_to_upload):
         
 if __name__ == "__main__":
     images_list = []
-    for img_file in Path("../test").glob("*.png"):
+    for img_file in Path("../all_badges").glob("*.png"):
         image = Image.open(img_file)
         images_list.append(image)
-        images_to_pdf(images_list, "../test/badges_list.pdf")
+        images_to_pdf(images_list, "../all_badges/badges_list.pdf")
+    print(len(images_list))

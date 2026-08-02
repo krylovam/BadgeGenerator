@@ -37,7 +37,7 @@ class Badge:
         tmp = re.split('/', self._path)[-1]
         tmp = tmp.split('.')[0]
         surname, name = tmp.split()[0], tmp.split()[1]
-        # job_title = tmp.split()[2]
+        job_title = tmp.split()[2]
         self._name = name#.title()
         self._surname = surname#.title()
         # self._job_title = job_title.lower()
@@ -96,10 +96,10 @@ class Badge:
             self._fontsize = 85
             self._name_coords = (40, 150)
             self._surname_coords = (40, 225)
-            #self._job_title_coords = (40, 350)
+            # self._job_title_coords = (40, 350)
         dir_path = os.path.dirname(__file__)
         font = ImageFont.truetype(f'{dir_path}/../assets/Montserrat-SemiBold.ttf', size=self._fontsize)
-        #font_job_title = ImageFont.truetype(f'{dir_path}/../assets/Montserrat-SemiBold.ttf', size=0.5 *self._fontsize)
+        # font_job_title = ImageFont.truetype(f'{dir_path}/../assets/Montserrat-SemiBold.ttf', size=0.5 *self._fontsize)
         draw_name = ImageDraw.Draw(self._template)
         draw_name.text(
             self._name_coords,
