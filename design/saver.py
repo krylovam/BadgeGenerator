@@ -1,7 +1,7 @@
 """Интерфейс сохранения результатов: отдельные PNG или PDF для печати."""
 from __future__ import annotations
 
-from PyQt5 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 
 class Ui_MainWindow(object):
@@ -29,8 +29,8 @@ class Ui_MainWindow(object):
 
         self.label_preview = QtWidgets.QLabel()
         self.label_preview.setMinimumSize(600, 400)
-        self.label_preview.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_preview.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.label_preview.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.label_preview.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         self.label_preview.setText("Предпросмотр недоступен")
         root.addWidget(self.label_preview, stretch=1)
 

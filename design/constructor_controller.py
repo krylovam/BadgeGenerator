@@ -7,9 +7,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from typing import List, Optional, Tuple
 
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtGui import QKeySequence
-from PyQt5.QtWidgets import QShortcut
+from PySide6 import QtCore, QtWidgets
+from PySide6.QtGui import QKeySequence, QShortcut
 
 from badge_generator.BadgeGenerator import Badge
 from badge_generator.template import BadgeTemplate
@@ -22,7 +21,7 @@ HISTORY_LIMIT = 50
 class Constructor(QtWidgets.QMainWindow):
     """Окно поочерёдной настройки фото на каждом бейдже."""
 
-    finished = QtCore.pyqtSignal()
+    finished = QtCore.Signal()
 
     def __init__(self, urls: List[str], template: BadgeTemplate):
         super(Constructor, self).__init__()
@@ -68,7 +67,7 @@ class Constructor(QtWidgets.QMainWindow):
         """Создаёт все бейджи с прогресс-баром. Возвращает False при отмене/ошибке."""
         progress = QtWidgets.QProgressDialog(
             "Генерация бейджей…\n(детекция лиц и подготовка фото)", "Отмена", 0, len(urls), self)
-        progress.setWindowModality(QtCore.Qt.WindowModal)
+        progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
         progress.setAutoClose(False)
         progress.setAutoReset(False)
@@ -109,7 +108,8 @@ class Constructor(QtWidgets.QMainWindow):
         ui.btn_zoom_in.clicked.connect(lambda: self._zoom(1.05))
         ui.btn_zoom_out.clicked.connect(lambda: self._zoom(0.95238095))
         ui.btn_undo.clicked.connect(self.undo)
-        QShortcut(QKeySequence("Ctrl+Z"), self, activated=self.undo)
+        shortcut = QShortcut(QKeySequence("Ctrl+Z"), self)
+        shortcut.activated.connect(self.undo)
         ui.btn_apply_name.clicked.connect(self.apply_names)
         ui.edit_name.editingFinished.connect(self.apply_names)
         ui.edit_surname.editingFinished.connect(self.apply_names)

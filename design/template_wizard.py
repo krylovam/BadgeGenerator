@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from PIL import Image, ImageDraw
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from badge_generator.template import BadgeTemplate, TextFieldConfig, TemplateConfigError
 from design.pixmap_utils import pil_to_pixmap
@@ -24,8 +24,8 @@ CORNER_HANDLE_SIZE = 16  # px на превью
 class _PreviewLabel(QtWidgets.QLabel):
     """Метка с мышью: клик/перетаскивание по превью макета."""
 
-    moved = QtCore.pyqtSignal(int, int)      # сдвиг в координатах макета
-    clicked_at = QtCore.pyqtSignal(int, int)  # клик в координатах макета
+    moved = QtCore.Signal(int, int)      # сдвиг в координатах макета
+    clicked_at = QtCore.Signal(int, int)  # клик в координатах макета
 
     def __init__(self, scale: float = 1.0):
         super().__init__()
@@ -33,8 +33,8 @@ class _PreviewLabel(QtWidgets.QLabel):
         self._last: Optional[QtCore.QPoint] = None
         self.setMouseTracking(True)
         self.setMinimumSize(PREVIEW_MAX_W, PREVIEW_MAX_H)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
 
     def set_scale(self, scale: float) -> None:
         self._scale = scale
@@ -43,13 +43,13 @@ class _PreviewLabel(QtWidgets.QLabel):
         return int(pos.x() / self._scale), int(pos.y() / self._scale)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
-        if event.button() == QtCore.Qt.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._last = event.pos()
             tx, ty = self._to_template(event.pos())
             self.clicked_at.emit(tx, ty)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
-        if self._last is not None and event.buttons() & QtCore.Qt.LeftButton:
+        if self._last is not None and event.buttons() & QtCore.Qt.MouseButton.LeftButton:
             dx = event.pos().x() - self._last.x()
             dy = event.pos().y() - self._last.y()
             self._last = event.pos()

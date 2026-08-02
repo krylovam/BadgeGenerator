@@ -4,14 +4,14 @@ from __future__ import annotations
 from typing import Tuple
 
 from PIL import Image
-from PyQt5.QtGui import QImage, QPixmap
+from PySide6.QtGui import QImage, QPixmap
 
 
 def pil_to_pixmap(image: Image.Image) -> QPixmap:
     """Конвертирует PIL-изображение в QPixmap (без PIL.ImageQt)."""
     rgba = image.convert("RGBA")
     data = rgba.tobytes("raw", "RGBA")
-    qimage = QImage(data, rgba.width, rgba.height, rgba.width * 4, QImage.Format_RGBA8888)
+    qimage = QImage(data, rgba.width, rgba.height, rgba.width * 4, QImage.Format.Format_RGBA8888)
     return QPixmap.fromImage(qimage)
 
 

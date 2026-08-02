@@ -73,7 +73,12 @@ class Badge:
         self._photo = Image.open(self._url)
 
     def detect_face(self) -> None:
-        """Масштабирует фото по лицу и позиционирует окно кадрирования."""
+        """Масштабирует фото по лицу и позиционирует окно кадрирования.
+
+        Горизонтально фото центрируется по середине отрезка между глазами
+        (YuNet даёт ключевые точки лица), вертикально — как раньше,
+        по прямоугольнику лица с учётом face_offset_y из конфига.
+        """
         cw, ch = self._template.photo.crop_size
         detector = FaceDetector(self._url)
         detector.detect()
@@ -87,7 +92,11 @@ class Badge:
         scale = self._template.photo.face_scale * cw / w
         new_size = (round(self._photo.width * scale), round(self._photo.height * scale))
         self._photo = self._photo.resize(new_size, Image.Resampling.LANCZOS)
-        center_x = (x + w / 2) * scale
+        eye_center = detector.get_eye_center()
+        if eye_center is not None:
+            center_x = eye_center[0] * scale
+        else:
+            center_x = (x + w / 2) * scale
         center_y = (y + h / 2) * scale * self._template.photo.face_offset_y
         self._photo_x = int(min(max(0.0, center_x - cw / 2), max(0, self._photo.width - cw)))
         self._photo_y = int(min(max(0.0, center_y - ch / 2), max(0, self._photo.height - ch)))

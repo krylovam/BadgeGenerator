@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List
 
 from PIL import Image
-from PyQt5 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from badge_generator.BadgeGenerator import READY_BADGES_DIR, Badge
 from design.pdf_output import build_pdf_pages, compute_grid, images_to_pdf
@@ -20,7 +20,7 @@ from design.saver import Ui_MainWindow
 class Saver(QtWidgets.QMainWindow):
     """Окно сохранения: отдельные файлы или PDF для печати."""
 
-    restarted = QtCore.pyqtSignal()
+    restarted = QtCore.Signal()
 
     def __init__(self, badges: List[Badge]):
         super(Saver, self).__init__()

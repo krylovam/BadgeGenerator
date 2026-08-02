@@ -8,11 +8,77 @@ import sys
 # `python -m design.application_controller` из корня репозитория.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt5 import QtWidgets
+from PySide6 import QtWidgets
 
 from design.constructor_controller import Constructor
 from design.main_menu import MainMenu
 from design.saver_controller import Saver
+
+APP_STYLESHEET = """
+QMainWindow, QDialog {
+    background: #f4f6fb;
+}
+QLabel {
+    color: #1e293b;
+}
+QPushButton {
+    background: #3b82f6;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-weight: 600;
+}
+QPushButton:hover {
+    background: #2563eb;
+}
+QPushButton:pressed {
+    background: #1d4ed8;
+}
+QPushButton:disabled {
+    background: #cbd5e1;
+    color: #f8fafc;
+}
+QGroupBox {
+    border: 1px solid #d7dee9;
+    border-radius: 8px;
+    margin-top: 12px;
+    padding-top: 6px;
+    font-weight: 600;
+    color: #334155;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 4px;
+}
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QListWidget {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #1e293b;
+}
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+    border-color: #3b82f6;
+}
+QProgressBar {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    text-align: center;
+    background: #ffffff;
+}
+QProgressBar::chunk {
+    background: #3b82f6;
+    border-radius: 5px;
+}
+QStatusBar {
+    background: #e8ecf5;
+}
+QCheckBox {
+    color: #334155;
+}
+"""
 
 
 class Controller:
@@ -52,9 +118,10 @@ class Controller:
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
+    app.setStyleSheet(APP_STYLESHEET)
     controller = Controller()
     controller.show_main_menu()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':

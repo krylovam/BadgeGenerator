@@ -21,33 +21,36 @@ class BadgeChecker:
 
 
 # Координаты фото рассчитаны по конфигу tests/assets/1отряд.json
-# (те же константы, что были захардкожены в старой версии приложения).
+# и детекции YuNet (центрирование по середине отрезка между глазами).
+# Допуск ±25 px на случай небольших отличий между версиями OpenCV.
 TEST_CASES = [
     BadgeChecker(
         file_path=f'{dir_path}/../assets/photos/кристин_петерсон.jpeg',
         template_path=TEMPLATE_PATH,
         name='Петерсон',
         surname='Кристин',
-        photo_coords=(585, 0)),
+        photo_coords=(1044, 247)),
     BadgeChecker(
         file_path=f'{dir_path}/../assets/photos/judy_estrin.jpeg',
         template_path=TEMPLATE_PATH,
         name='Estrin',
         surname='Judy',
-        photo_coords=(415, 0)),
+        photo_coords=(561, 0)),
     BadgeChecker(
         file_path=f'{dir_path}/../assets/photos/tim_oreilly.jpeg',
         template_path=TEMPLATE_PATH,
         name='Oreilly',
         surname='Tim',
-        photo_coords=(220, 0)),
+        photo_coords=(523, 137)),
     BadgeChecker(
         file_path=f'{dir_path}/../assets/photos/vint_cerf.jpeg',
         template_path=TEMPLATE_PATH,
         name='Cerf',
         surname='Vint',
-        photo_coords=(559, 0)),
+        photo_coords=(1058, 35)),
 ]
+
+COORD_TOLERANCE = 25
 
 
 @pytest.fixture(scope="module")
@@ -60,7 +63,9 @@ def test_badge_init(t: BadgeChecker, template: BadgeTemplate) -> None:
     badge = Badge(0, t.file_path, template)
     assert badge.get_name() == t.name
     assert badge.get_surname() == t.surname
-    assert badge.get_photo_coords() == t.photo_coords
+    x, y = badge.get_photo_coords()
+    assert abs(x - t.photo_coords[0]) <= COORD_TOLERANCE
+    assert abs(y - t.photo_coords[1]) <= COORD_TOLERANCE
     # бейдж отрисован и имеет размер макета
     assert badge.get_photo().size == template.size
 

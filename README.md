@@ -4,6 +4,9 @@
 встраивает фото (с автоматической детекцией лица) и сохраняет результат —
 отдельными PNG или PDF-листом для печати с линиями отреза.
 
+Стек: **PySide6 (Qt 6)** для интерфейса, **OpenCV + YuNet (ONNX)** для
+детекции лица, Pillow для отрисовки.
+
 ## Запуск
 
 ```bash
@@ -67,6 +70,14 @@ python design/application_controller.py
   по вертикали, `remove_background` — удалять светлый фон с фото
   (алгоритм в `badge_generator/delete_background.py`).
 
+## Детекция лица
+
+Основной движок — **YuNet** (CNN-модель `face_detection_yunet_2023mar.onnx`,
+лежит в `detector/utils/`, ~230 КБ). Она точнее каскада Хаара и дополнительно
+возвращает 5 ключевых точек лица, по которым фото центрируется по глазам
+(а не по прямоугольнику). Если файл модели удалить, детектор автоматически
+откатится на каскад `cascade.xml`.
+
 ## Печать
 
 Кнопка **«Сохранить PDF для печати»** собирает A4-листы (300 dpi) с реальным
@@ -91,13 +102,20 @@ badge_generator/          # ядро (без Qt)
     BadgeGenerator.py     # генерация бейджа
     delete_background.py  # удаление светлого фона с фото
 detector/
-    FaceDetection.py      # детекция лица (каскад Хаара)
-design/                   # интерфейс (PyQt5)
+    FaceDetection.py      # детекция лица: YuNet (ONNX) + каскад Хаара
+    utils/                # модели: face_detection_yunet_2023mar.onnx, cascade.xml
+design/                   # интерфейс (PySide6 / Qt 6)
     application_controller.py
-    main_menu.py / main_menu.ui
+    main_menu.py / main_menu.ui / ui_main_menu.py
     template_wizard.py    # мастер настройки шаблона
     constructor.py / constructor_controller.py
     saver.py / saver_controller.py
     pdf_output.py         # PDF с линиями отреза
 assets/Montserrat.ttf     # шрифт по умолчанию
+```
+
+`ui_main_menu.py` сгенерирован из `main_menu.ui`:
+
+```bash
+pyside6-uic design/main_menu.ui -o design/ui_main_menu.py
 ```

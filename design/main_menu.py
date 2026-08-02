@@ -4,11 +4,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from PyQt5 import QtWidgets, uic
-from PyQt5.QtCore import pyqtSignal
+from PySide6 import QtWidgets
+from PySide6.QtCore import Signal
 
 from badge_generator.template import BadgeTemplate, TemplateConfigError
 from design.pixmap_utils import load_pixmap
+from design.ui_main_menu import Ui_MainWindow
 
 UI_PATH = Path(__file__).resolve().parent / "main_menu.ui"
 PHOTO_TYPES = ("*.png", "*.jpeg", "*.jpg", "*.PNG", "*.JPEG", "*.JPG")
@@ -17,12 +18,13 @@ PHOTO_TYPES = ("*.png", "*.jpeg", "*.jpg", "*.PNG", "*.JPEG", "*.JPG")
 class MainMenu(QtWidgets.QMainWindow):
     """Стартовое окно: выбор данных и переход к конструктору."""
 
-    next_requested = pyqtSignal()
-    configure_requested = pyqtSignal()
+    next_requested = Signal()
+    configure_requested = Signal()
 
     def __init__(self):
         super(MainMenu, self).__init__()
-        uic.loadUi(str(UI_PATH), self)
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
         self.setWindowTitle("Генератор бейджей")
 
         self._photos: List[str] = []
@@ -101,7 +103,7 @@ class MainMenu(QtWidgets.QMainWindow):
             return
         from design.template_wizard import TemplateWizard
         wizard = TemplateWizard(self._template_path, parent=self)
-        if wizard.exec_() == QtWidgets.QDialog.Accepted:
+        if wizard.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             self._load_template_config()
             self.check_errors()
 

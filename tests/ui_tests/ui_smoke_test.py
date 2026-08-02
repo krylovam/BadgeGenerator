@@ -1,6 +1,6 @@
 """Дымовые тесты интерфейса (offscreen): окна создаются и работают без экрана.
 
-Пропускаются, если PyQt5 недоступен в окружении.
+Пропускаются, если PySide6 недоступен в окружении.
 """
 import os
 import sys
@@ -10,9 +10,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 
 try:
-    from PyQt5 import QtWidgets
+    from PySide6 import QtWidgets
 except ImportError:
-    pytest.skip("PyQt5 недоступен", allow_module_level=True)
+    pytest.skip("PySide6 недоступен", allow_module_level=True)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 

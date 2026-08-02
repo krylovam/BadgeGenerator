@@ -1,14 +1,14 @@
 """Интерфейс конструктора: настройка фото на бейдже."""
 from __future__ import annotations
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 
 class _PreviewLabel(QtWidgets.QLabel):
     """Метка-превью с перетаскиванием мышью и зумом колёсиком."""
 
-    translated = QtCore.pyqtSignal(int, int)  # сдвиг в координатах бейджа
-    zoomed = QtCore.pyqtSignal(float)
+    translated = QtCore.Signal(int, int)  # сдвиг в координатах бейджа
+    zoomed = QtCore.Signal(float)
 
     def __init__(self):
         super().__init__()
@@ -16,8 +16,8 @@ class _PreviewLabel(QtWidgets.QLabel):
         self._last: QtCore.QPoint | None = None
         self.setMouseTracking(True)
         self.setMinimumSize(720, 480)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         self.setStyleSheet("background-color: #f2f2f2;")
 
     def set_scale(self, scale: float) -> None:
@@ -25,11 +25,11 @@ class _PreviewLabel(QtWidgets.QLabel):
         self._scale = scale
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
-        if event.button() == QtCore.Qt.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._last = event.pos()
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
-        if self._last is not None and event.buttons() & QtCore.Qt.LeftButton:
+        if self._last is not None and event.buttons() & QtCore.Qt.MouseButton.LeftButton:
             dx = event.pos().x() - self._last.x()
             dy = event.pos().y() - self._last.y()
             self._last = event.pos()
