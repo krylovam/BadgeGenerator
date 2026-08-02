@@ -32,10 +32,10 @@ class MainMenu(QtWidgets.QMainWindow):
         self._template: Optional[BadgeTemplate] = None
         self._config_missing = False
 
-        self.pushButton_photos.clicked.connect(self.select_photos)
-        self.pushButton_template.clicked.connect(self.select_template)
-        self.pushButton_configure.clicked.connect(self.open_template_wizard)
-        self.pushButton_next.clicked.connect(self.next_requested.emit)
+        self.ui.pushButton_photos.clicked.connect(self.select_photos)
+        self.ui.pushButton_template.clicked.connect(self.select_template)
+        self.ui.pushButton_configure.clicked.connect(self.open_template_wizard)
+        self.ui.pushButton_next.clicked.connect(self.next_requested.emit)
 
     # ------------------------------------------------------------------ #
     # Публичное состояние
@@ -62,7 +62,7 @@ class MainMenu(QtWidgets.QMainWindow):
         folder = Path(directory)
         for pattern in PHOTO_TYPES:
             self._photos.extend(str(p) for p in sorted(folder.glob(pattern)))
-        self.label_photos_info.setText(f"Фото: найдено {len(self._photos)}")
+        self.ui.label_photos_info.setText(f"Фото: найдено {len(self._photos)}")
         self.check_errors()
 
     def select_template(self) -> None:
@@ -80,23 +80,23 @@ class MainMenu(QtWidgets.QMainWindow):
         self._template = None
         try:
             self._template = BadgeTemplate.from_template_file(self._template_path)
-            self.label_template_info.setText(
+            self.ui.label_template_info.setText(
                 f"Шаблон: {self._template_path.name} · {self._template.badge_size_mm[0]}×"
                 f"{self._template.badge_size_mm[1]} мм @ {self._template.dpi} dpi")
         except TemplateConfigError:
             self._config_missing = True
-            self.label_template_info.setText(
+            self.ui.label_template_info.setText(
                 f"Шаблон: {self._template_path.name} — конфиг не найден, нажмите «Настроить шаблон…»")
-        self.pushButton_configure.setEnabled(self._template_path is not None)
+        self.ui.pushButton_configure.setEnabled(self._template_path is not None)
         self._update_preview()
 
     def _update_preview(self) -> None:
         if self._template is not None:
             pixmap = load_pixmap(str(self._template.template_file), (460, 320))
-            self.label_preview.setPixmap(pixmap)
+            self.ui.label_preview.setPixmap(pixmap)
         else:
-            self.label_preview.clear()
-            self.label_preview.setText("Макет не выбран")
+            self.ui.label_preview.clear()
+            self.ui.label_preview.setText("Макет не выбран")
 
     def open_template_wizard(self) -> None:
         if self._template_path is None:
@@ -109,9 +109,9 @@ class MainMenu(QtWidgets.QMainWindow):
 
     def check_errors(self) -> None:
         if not self._photos:
-            self.error_label.setText("В выбранной папке нет фотографий (*.png, *.jpg, *.jpeg)")
+            self.ui.error_label.setText("В выбранной папке нет фотографий (*.png, *.jpg, *.jpeg)")
         elif self._template is None:
-            self.error_label.setText("Выберите шаблон и настройте его конфигурацию")
+            self.ui.error_label.setText("Выберите шаблон и настройте его конфигурацию")
         else:
-            self.error_label.setText("")
-        self.pushButton_next.setEnabled(self.is_ready())
+            self.ui.error_label.setText("")
+        self.ui.pushButton_next.setEnabled(self.is_ready())

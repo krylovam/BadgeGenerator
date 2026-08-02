@@ -43,7 +43,7 @@ def test_main_menu(app) -> None:
     menu._load_template_config()
     menu.check_errors()
     assert menu.is_ready()
-    assert menu.pushButton_next.isEnabled()
+    assert menu.ui.pushButton_next.isEnabled()
     menu.close()
 
 
