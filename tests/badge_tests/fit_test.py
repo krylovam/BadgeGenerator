@@ -79,3 +79,60 @@ def test_small_photo_no_black_padding(tmp_path) -> None:
     # вся область фото — красная (нет чёрных вставок)
     for px, py in [(120, 120), (499, 350), (350, 599), (499, 599)]:
         assert img.getpixel((px, py)) == (200, 30, 30), f"чёрное поле в ({px},{py})"
+
+
+def test_rounded_corners_photo_area(tmp_path) -> None:
+    """Скругление углов области фото (border_radius): углы прозрачны,
+    центр непрозрачен, фото не выходит за область."""
+    import json
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
+    photo = tmp_path / "photo.png"
+    Image.new("RGB", (800, 800), (200, 30, 30)).save(photo)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 100],
+        "dpi": 300,
+        "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 50}],
+        "photo": {"place_on_badge": [100, 100, 400, 500], "crop_size": [1290, 1470],
+                  "border_radius": 45},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, str(photo), template)
+    img = badge.get_photo()
+    assert img.mode == "RGBA"
+    a = img.getchannel("A")
+    # углы области — прозрачные (скругление)
+    for px, py in [(100, 100), (499, 100), (100, 599), (499, 599)]:
+        assert a.getpixel((px, py)) == 0, f"угол ({px},{py}) не прозрачен"
+    # центр — непрозрачный
+    assert a.getpixel((300, 350)) == 255
+    # внутри области (не у угла) — непрозрачный
+    assert a.getpixel((150, 150)) == 255
+    # за областью — белый макет
+    assert img.getpixel((90, 90))[:3] == (255, 255, 255)
+
+
+def test_rounded_corners_zero_radius(tmp_path) -> None:
+    """border_radius=0 (по умолчанию) — углы не скругляются."""
+    import json
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
+    photo = tmp_path / "photo.png"
+    Image.new("RGB", (800, 800), (200, 30, 30)).save(photo)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 100],
+        "dpi": 300,
+        "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 50}],
+        "photo": {"place_on_badge": [100, 100, 400, 500], "crop_size": [1290, 1470]},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, str(photo), template)
+    img = badge.get_photo()
+    # при radius=0 фото без прозрачности — бейдж RGB
+    assert img.mode == "RGB"
+    # угол области — фото (не прозрачный)
+    assert img.getpixel((100, 100))[:3] == (200, 30, 30)

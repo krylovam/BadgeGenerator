@@ -170,9 +170,11 @@ class Badge:
     def render(self) -> None:
         """Перерисовывает бейдж целиком (текст + фото) поверх макета."""
         img = self._template.image.copy()
-        # если фото с прозрачностью (удалён фон) — работаем в RGBA, чтобы
-        # прозрачность сохранилась до самого конца
-        if self._photo is not None and self._photo.mode == "RGBA":
+        # работаем в RGBA, если фото с прозрачностью (удалён фон) или
+        # область фото со скруглёнными углами — прозрачность нужна до конца
+        need_alpha = (self._photo is not None and self._photo.mode == "RGBA") or \
+                     self._template.photo.border_radius > 0
+        if need_alpha:
             img = img.convert("RGBA")
         draw = ImageDraw.Draw(img)
         for field in self._template.text_fields:
@@ -232,17 +234,94 @@ class Badge:
             if over_h > 0:
                 cropped = cropped.crop((0, 0, new_w, max(1, new_h - over_h)))
                 new_h = cropped.height
+            # Скругление углов области фото (border_radius из конфига).
+            # Сначала вставляем фото, затем вырезаем углы маской скругления
+            # из итогового изображения — иначе прозрачные углы cropped
+            # показывали бы подложку, а не делали бейдж прозрачным.
+            radius = self._template.photo.border_radius
             if cropped.mode == "RGBA":
-                # прозрачность сохраняем: вклеиваем с альфой
+                # вклеиваем с сохранением прозрачности (на случай удаления фона)
                 if img.mode == "RGBA":
-                    img.paste(cropped, (paste_x, paste_y), cropped)
+                    region = img.crop((paste_x, paste_y,
+                                       paste_x + cropped.width,
+                                       paste_y + cropped.height)).convert("RGBA")
+                    blended = Image.alpha_composite(region, cropped)
+                    img.paste(blended, (paste_x, paste_y))
                 else:
                     patch = Image.new("RGBA", cropped.size, (255, 255, 255, 255))
                     patch = Image.alpha_composite(patch, cropped)
                     img.paste(patch.convert(img.mode), (paste_x, paste_y))
             else:
                 img.paste(cropped, (paste_x, paste_y))
+            if radius > 0 and img.mode == "RGBA":
+                # скругление применяется к границам ОБЛАСТИ фото (x, y, pw, ph),
+                # а не к обрезанному фото — иначе углы могут не совпасть
+                img = self._apply_rounded_corners_to_area(
+                    img, (x, y, pw, ph), radius)
         self._badge_image = img
+
+    @staticmethod
+    def _apply_rounded_corners_to_area(img: Image.Image,
+                                       area: Tuple[int, int, int, int],
+                                       radius: int) -> Image.Image:
+        """Вырезает углы области фото (area) скруглением radius на img."""
+        if img.mode != "RGBA":
+            img = img.convert("RGBA")
+        ax, ay, aw, ah = area
+        radius = max(1, min(radius, aw // 2, ah // 2))
+        # маска: 255 везде, кроме углов (там 0 — фото вырезается скруглением).
+        # Для каждого угла перебираем его квадрат radius x radius и делаем
+        # прозрачными пиксели, выходящие за четверть круга.
+        mask = Image.new("L", (aw, ah), 255)
+        draw = ImageDraw.Draw(mask)
+        # (x0, y0) — левый верхний угол квадрата скругления; (cx, cy) — центр дуги
+        corners = ((0, 0, radius, radius),                       # верхний левый
+                   (aw - radius, 0, aw - radius - 1, radius),   # верхний правый
+                   (0, ah - radius, radius, ah - radius - 1),   # нижний левый
+                   (aw - radius, ah - radius,
+                    aw - radius - 1, ah - radius - 1))          # нижний правый
+        for x0, y0, cx, cy in corners:
+            for yy in range(y0, y0 + radius):
+                for xx in range(x0, x0 + radius):
+                    if (xx - cx) ** 2 + (yy - cy) ** 2 > radius * radius:
+                        draw.point((xx, yy), fill=0)
+        # применяем маску к альфа-каналу img в области фото:
+        # новая альфа = старая альфа области * маска скругления
+        r, g, b, alpha = img.split()
+        region_alpha = alpha.crop((ax, ay, ax + aw, ay + ah))
+        new_alpha = Image.composite(region_alpha, Image.new("L", (aw, ah), 0), mask)
+        alpha.paste(new_alpha, (ax, ay))
+        return Image.merge("RGBA", (r, g, b, alpha))
+
+    @staticmethod
+    def _apply_rounded_corners(image: Image.Image, radius: int) -> Image.Image:
+        """Возвращает копию image с прозрачными закруглёнными углами.
+
+        radius — радиус скругления в пикселях (в координатах области фото).
+        """
+        if image.mode != "RGBA":
+            image = image.convert("RGBA")
+        w, h = image.size
+        radius = max(1, min(radius, w // 2, h // 2))
+        mask = Image.new("L", (w, h), 0)
+        draw = ImageDraw.Draw(mask)
+        # rounded_rectangle появился в Pillow 8.2; рисуем сами для совместимости
+        draw.rectangle((radius, 0, w - radius, h), fill=255)                 # центр по X
+        draw.rectangle((0, radius, w, h - radius), fill=255)                 # центр по Y
+        draw.rectangle((radius, radius, w - radius, h - radius), fill=255)   # середина
+        # углы — четверти окружности
+        for cx, cy, sx, sy in ((radius, radius, -1, -1),
+                               (w - radius - 1, radius, 1, -1),
+                               (radius, h - radius - 1, -1, 1),
+                               (w - radius - 1, h - radius - 1, 1, 1)):
+            for dy in range(-radius, radius + 1):
+                for dx in range(-radius, radius + 1):
+                    if dx * dx + dy * dy <= radius * radius:
+                        draw.point((cx + sx * dx, cy + sy * dy), fill=255)
+        # маска скругления — итоговая альфа (Image.composite здесь не подходит:
+        # он берёт image2 там, где mask=0, т.е. углы остались бы непрозрачными)
+        image.putalpha(mask)
+        return image
 
     # ------------------------------------------------------------------ #
     # Доступ к данным

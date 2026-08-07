@@ -33,6 +33,7 @@ PHOTO_DEFAULTS = {
     "face_scale": DEFAULT_FACE_SCALE,
     "face_offset_y": DEFAULT_FACE_OFFSET_Y,
     "remove_background": False,
+    "border_radius": 0,
 }
 
 KNOWN_FIELD_IDS = ("name", "surname")
@@ -159,6 +160,11 @@ class PhotoConfig:
             raise TemplateConfigError("photo.face_scale должно быть больше нуля")
         self.remove_background: bool = _as_bool(
             data.get("remove_background", PHOTO_DEFAULTS["remove_background"]), "photo.remove_background")
+        try:
+            self.border_radius: int = int(data.get("border_radius", 0))
+        except (TypeError, ValueError):
+            raise TemplateConfigError("photo.border_radius должно быть числом")
+        self.border_radius = max(0, self.border_radius)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -167,6 +173,7 @@ class PhotoConfig:
             "face_scale": self.face_scale,
             "face_offset_y": self.face_offset_y,
             "remove_background": self.remove_background,
+            "border_radius": self.border_radius,
         }
 
 

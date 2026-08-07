@@ -322,6 +322,12 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_offset = QtWidgets.QDoubleSpinBox()
         self.spin_face_offset.setRange(0.5, 3.0)
         self.spin_face_offset.setSingleStep(0.05)
+        self.spin_border_radius = QtWidgets.QSpinBox()
+        self.spin_border_radius.setRange(0, 500)
+        self.spin_border_radius.setValue(0)
+        self.spin_border_radius.setSuffix(" px")
+        self.spin_border_radius.setToolTip(
+            "Радиус скругления углов области фото (0 — прямые углы)")
         self.check_remove_bg = QtWidgets.QCheckBox("вырезать человека с фото (убрать фон)")
         remove_bg_hint = QtWidgets.QLabel(
             "Используется библиотека rembg (как в оригинальном приложении). "
@@ -340,6 +346,7 @@ class TemplateWizard(QtWidgets.QDialog):
         photo_form.addRow("Масштаб по лицу:", self.spin_face_scale)
         photo_form.addRow("", face_scale_hint)
         photo_form.addRow("Смещение лица по Y:", self.spin_face_offset)
+        photo_form.addRow("Радиус скругления:", self.spin_border_radius)
         photo_form.addRow("", self.check_remove_bg)
         photo_form.addRow("", remove_bg_hint)
         form.addWidget(photo_box)
@@ -382,6 +389,7 @@ class TemplateWizard(QtWidgets.QDialog):
             spin.valueChanged.connect(self._on_photo_spin_changed)
         self.spin_face_scale.valueChanged.connect(self._on_photo_spin_changed)
         self.spin_face_offset.valueChanged.connect(self._on_photo_spin_changed)
+        self.spin_border_radius.valueChanged.connect(self._on_photo_spin_changed)
         self.check_remove_bg.toggled.connect(self._on_photo_spin_changed)
         self.radio_listener.toggled.connect(self._on_name_format_changed)
         for w in (self.edit_label, self.spin_font_size, self.spin_max_width,
@@ -443,7 +451,7 @@ class TemplateWizard(QtWidgets.QDialog):
                    self.spin_photo_w, self.spin_photo_h,
                    self.spin_crop_w, self.spin_crop_h,
                    self.spin_face_scale, self.spin_face_offset,
-                   self.check_remove_bg)
+                   self.spin_border_radius, self.check_remove_bg)
         for w in blocked:
             w.blockSignals(True)
         self.spin_badge_w.setValue(t.badge_size_mm[0])
@@ -457,6 +465,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_crop_h.setValue(t.photo.crop_size[1])
         self.spin_face_scale.setValue(t.photo.face_scale)
         self.spin_face_offset.setValue(t.photo.face_offset_y)
+        self.spin_border_radius.setValue(t.photo.border_radius)
         self.check_remove_bg.setChecked(t.photo.remove_background)
         for w in blocked:
             w.blockSignals(False)
@@ -644,6 +653,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.template.photo.face_scale = self.spin_face_scale.value()
         self.template.photo.face_offset_y = self.spin_face_offset.value()
         self.template.photo.remove_background = self.check_remove_bg.isChecked()
+        self.template.photo.border_radius = self.spin_border_radius.value()
         self._photo_params_dirty = True
         # фон/порог влияют на исходное фото — сбрасываем кэш примера,
         # чтобы Badge пересоздался с новыми параметрами
@@ -672,7 +682,10 @@ class TemplateWizard(QtWidgets.QDialog):
             od.text((f.anchor[0] + 4, f.anchor[1] - box_h // 3), f.label,
                     fill=color + (255,))
         x, y, w, h = self.template.photo.place_on_badge
-        od.rectangle((x, y, x + w, y + h), outline=PHOTO_COLOR + (255,), width=4)
+        # область фото: рамка со скруглением (как на итоговом бейдже)
+        radius = self.template.photo.border_radius
+        od.rounded_rectangle((x, y, x + w, y + h), radius=radius,
+                             outline=PHOTO_COLOR + (255,), width=4)
         od.rectangle((x + w - CORNER_HANDLE_SIZE, y + h - CORNER_HANDLE_SIZE,
                       x + w, y + h), fill=PHOTO_COLOR + (255,))
         preview = Image.alpha_composite(img, overlay)
