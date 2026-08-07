@@ -22,6 +22,7 @@ class Constructor(QtWidgets.QMainWindow):
     """Окно поочерёдной настройки фото на каждом бейдже."""
 
     finished = QtCore.Signal()
+    back_to_menu = QtCore.Signal()
 
     def __init__(self, urls: List[str], template: BadgeTemplate):
         super(Constructor, self).__init__()
@@ -119,6 +120,7 @@ class Constructor(QtWidgets.QMainWindow):
         ui.btn_next.clicked.connect(self.next_badge)
         ui.btn_back.clicked.connect(self.prev_badge)
         ui.btn_finish.clicked.connect(self.finished.emit)
+        ui.btn_to_menu.clicked.connect(self.request_back_to_menu)
         ui.preview_label.translated.connect(self._on_drag)
         ui.preview_label.zoomed.connect(self._zoom)
 
@@ -218,3 +220,14 @@ class Constructor(QtWidgets.QMainWindow):
     def prev_badge(self) -> None:
         if self.curr_badge_id > 0:
             self.show_badge(self.curr_badge_id - 1)
+
+    def request_back_to_menu(self) -> None:
+        """Возврат в главное меню (правки бейджей будут перегенерированы)."""
+        answer = QtWidgets.QMessageBox.question(
+            self, "Вернуться в меню",
+            "Текущие правки бейджей будут потеряны (генерация запустится "
+            "заново). Вернуться в главное меню?",
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+            QtWidgets.QMessageBox.StandardButton.No)
+        if answer == QtWidgets.QMessageBox.StandardButton.Yes:
+            self.back_to_menu.emit()

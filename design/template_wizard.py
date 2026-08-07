@@ -21,16 +21,28 @@ PREVIEW_MAX_H = 600
 CORNER_HANDLE_SIZE = 16  # px на превью
 
 
+def preview_to_template(px: float, py: float, origin_x: float, origin_y: float,
+                        scale: float) -> Tuple[int, int]:
+    """Координаты клика (px, py) в пикселях превью -> координаты макета.
+
+    origin_x/origin_y — смещение pixmap внутри QLabel (превью центрируется).
+    """
+    return int((px - origin_x) / scale), int((py - origin_y) / scale)
+
+
 class _PreviewLabel(QtWidgets.QLabel):
     """Метка с мышью: клик/перетаскивание по превью макета."""
 
     moved = QtCore.Signal(int, int)      # сдвиг в координатах макета
     clicked_at = QtCore.Signal(int, int)  # клик в координатах макета
+    released = QtCore.Signal()            # отпускание левой кнопки мыши
 
     def __init__(self, scale: float = 1.0):
         super().__init__()
         self._scale = scale
         self._last: Optional[QtCore.QPoint] = None
+        self._origin_x = 0
+        self._origin_y = 0
         self.setMouseTracking(True)
         self.setMinimumSize(PREVIEW_MAX_W, PREVIEW_MAX_H)
         self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -39,8 +51,26 @@ class _PreviewLabel(QtWidgets.QLabel):
     def set_scale(self, scale: float) -> None:
         self._scale = scale
 
+    def setPixmap(self, pixmap: QtGui.QPixmap) -> None:  # noqa: N802 — переопределение Qt
+        super().setPixmap(pixmap)
+        self._update_origin()
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self._update_origin()
+
+    def _update_origin(self) -> None:
+        """Pixmap центрируется в метке — запоминаем её смещение."""
+        pixmap = self.pixmap()
+        if pixmap is None or pixmap.isNull():
+            self._origin_x = self._origin_y = 0
+            return
+        self._origin_x = max(0, (self.width() - pixmap.width()) // 2)
+        self._origin_y = max(0, (self.height() - pixmap.height()) // 2)
+
     def _to_template(self, pos: QtCore.QPoint) -> Tuple[int, int]:
-        return int(pos.x() / self._scale), int(pos.y() / self._scale)
+        return preview_to_template(pos.x(), pos.y(),
+                                   self._origin_x, self._origin_y, self._scale)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -58,16 +88,23 @@ class _PreviewLabel(QtWidgets.QLabel):
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         self._last = None
+        self.released.emit()
 
 
 class TemplateWizard(QtWidgets.QDialog):
     """Диалог настройки конфигурации шаблона (JSON рядом с макетом)."""
 
-    def __init__(self, template_path: Path, parent: Optional[QtWidgets.QWidget] = None):
+    def __init__(self, template_path: Path, photos=None,
+                 parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
         self.setWindowTitle("Настройка шаблона бейджа")
         self.resize(1180, 760)
         self._template_path = Path(template_path)
+        self._photos = list(photos or [])
+        self._example_photo: Optional[str] = None
+        self._example_badge = None
+        self._photo_params_dirty = False
+        self._preview_scale = 1.0
 
         # Загружаем существующий конфиг или создаём настройки по умолчанию
         config_loaded = True
@@ -79,10 +116,11 @@ class TemplateWizard(QtWidgets.QDialog):
             config_loaded = False
 
         self._mode = "photo"  # id текстового поля или 'photo'
-        self._drag: Optional[Tuple[str, int, int]] = None  # (тип, смещение x, смещение y)
+        self._drag: Optional[str] = None  # 'photo_move' / 'photo_resize' / 'field_move'
 
         self._build_ui()
         self._sync_controls_from_template()
+        self._fill_example_photo_combo()
         self._update_preview()
         if not config_loaded:
             QtWidgets.QMessageBox.information(
@@ -102,8 +140,16 @@ class TemplateWizard(QtWidgets.QDialog):
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
 
-        # --- левая часть: превью --------------------------------------- #
+        # --- левая часть: вкладки «Расстановка» / «Пример бейджа» ------- #
         left = QtWidgets.QVBoxLayout()
+
+        self.tabs = QtWidgets.QTabWidget()
+        left.addWidget(self.tabs)
+
+        # вкладка 1: расстановка элементов
+        tab_place = QtWidgets.QWidget()
+        tab_place_layout = QtWidgets.QVBoxLayout(tab_place)
+        tab_place_layout.setContentsMargins(4, 8, 4, 4)
 
         header = QtWidgets.QHBoxLayout()
         self.hint_label = QtWidgets.QLabel("")
@@ -116,16 +162,50 @@ class TemplateWizard(QtWidgets.QDialog):
         self.btn_help.setFixedSize(32, 32)
         self.btn_help.setToolTip("Подробная инструкция")
         header.addWidget(self.btn_help)
-        left.addLayout(header)
+        tab_place_layout.addLayout(header)
 
         self.preview_label = _PreviewLabel()
         self.preview_label.clicked_at.connect(self._on_preview_click)
         self.preview_label.moved.connect(self._on_preview_move)
-        left.addWidget(self.preview_label)
+        self.preview_label.released.connect(self._on_preview_released)
+        tab_place_layout.addWidget(self.preview_label)
 
         self.mode_combo = QtWidgets.QComboBox()
-        left.addWidget(self.mode_combo)
+        tab_place_layout.addWidget(self.mode_combo)
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+
+        # вкладка 2: пример итогового бейджа
+        tab_example = QtWidgets.QWidget()
+        tab_example_layout = QtWidgets.QVBoxLayout(tab_example)
+        tab_example_layout.setContentsMargins(4, 8, 4, 4)
+
+        example_row = QtWidgets.QHBoxLayout()
+        example_row.addWidget(QtWidgets.QLabel("Фото для примера:"))
+        self.combo_example_photo = QtWidgets.QComboBox()
+        self.combo_example_photo.setMinimumWidth(240)
+        example_row.addWidget(self.combo_example_photo, stretch=1)
+        self.btn_pick_photo = QtWidgets.QPushButton("Выбрать фото…")
+        example_row.addWidget(self.btn_pick_photo)
+        tab_example_layout.addLayout(example_row)
+
+        self.example_label = QtWidgets.QLabel("Выберите фото, чтобы увидеть пример бейджа")
+        self.example_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.example_label.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        self.example_label.setMinimumSize(400, 300)
+        tab_example_layout.addWidget(self.example_label, stretch=1)
+
+        self.example_info = QtWidgets.QLabel("")
+        self.example_info.setWordWrap(True)
+        self.example_info.setStyleSheet("color: #555;")
+        tab_example_layout.addWidget(self.example_info)
+
+        self.tabs.addTab(tab_place, "Расстановка элементов")
+        self.tabs.addTab(tab_example, "Пример бейджа")
+
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+        self.combo_example_photo.currentIndexChanged.connect(self._on_example_photo_changed)
+        self.btn_pick_photo.clicked.connect(self._pick_example_photo)
+
         layout.addLayout(left, stretch=3)
 
         # --- правая часть: панель настроек ------------------------------ #
@@ -368,33 +448,38 @@ class TemplateWizard(QtWidgets.QDialog):
         if self._mode == "photo":
             self.hint_label.setText(
                 "Область фото: кликните по макету — левый верхний угол фото "
-                "встанет в точку клика. Затем тяните за синий уголок вниз-вправо, "
-                "чтобы растянуть область, или перетаскивайте область целиком.")
+                "встанет в точку клика. Кликните по самой области — и тяните "
+                "её мышью, чтобы двигать. Синий уголок в правом нижнем углу "
+                "растягивает область.")
         else:
             field = self._current_field()
             if field is not None:
                 self.hint_label.setText(
                     f"Текстовое поле «{field.label}»: кликните по макету — "
-                    "текст будет начинаться в точке клика. Затем перетаскивайте "
-                    "поле мышью, чтобы подвинуть его. Размер шрифта настраивается "
-                    "справа в блоке «Текстовые поля».")
+                    "текст будет начинаться в точке клика. Кликните по полю и "
+                    "тяните его мышью, чтобы двигать. Размер шрифта и другие "
+                    "параметры — справа в блоке «Текстовые поля».")
 
     def _show_help(self) -> None:
         QtWidgets.QMessageBox.information(
             self, "Как настроить шаблон",
-            "1. Сверху над макетом выберите, что настраиваете: текстовое поле "
-            "(«Имя», «Фамилия») или «Фото область».\n"
+            "1. На вкладке «Расстановка элементов» выберите, что настраиваете: "
+            "текстовое поле («Имя», «Фамилия») или «Фото область».\n"
             "2. Кликните по макету — выбранный элемент встанет в точку клика "
             "(для текста — его начало, для фото — левый верхний угол).\n"
-            "3. Перетаскивайте элемент мышью, чтобы двигать его. У области фото "
-            "есть синий уголок в правом нижнем углу — тяните его, чтобы менять "
-            "размер области.\n"
+            "3. Чтобы двигать элемент — кликните по нему и перетаскивайте "
+            "мышью (элемент «схватится» за точку клика, без скачков). У области "
+            "фото есть синий уголок в правом нижнем углу — тяните его, чтобы "
+            "менять размер области.\n"
             "4. Параметры выбранного элемента меняются в панели справа: "
             "размер шрифта, выравнивание, цвет, «уменьшать шрифт, если не "
             "влезает» — для текста; для фото — масштаб по лицу и др.\n"
-            "5. Укажите физический размер бейджа в миллиметрах (измерьте "
+            "5. На вкладке «Пример бейджа» сразу видно, как будет выглядеть "
+            "бейдж с реальным фото и подписями — выберите фото участника "
+            "из загруженной папки или любое другое.\n"
+            "6. Укажите физический размер бейджа в миллиметрах (измерьте "
             "линейкой ваш бейдж) — от него зависит раскладка в PDF.\n"
-            "6. Нажмите «Сохранить конфиг» — рядом с макетом появится "
+            "7. Нажмите «Сохранить конфиг» — рядом с макетом появится "
             "JSON-файл, и макет станет готов к использованию.\n\n"
             "Подсказка: если у вас уже есть готовый бейдж (пример результата), "
             "можно не расставлять ничего вручную — утилита "
@@ -476,7 +561,10 @@ class TemplateWizard(QtWidgets.QDialog):
         self.template.photo.face_scale = self.spin_face_scale.value()
         self.template.photo.face_offset_y = self.spin_face_offset.value()
         self.template.photo.remove_background = self.check_remove_bg.isChecked()
+        self._photo_params_dirty = True
         self._update_preview()
+        if self.tabs.currentIndex() == 1:
+            self._update_example_preview(force_crop=True)
 
     # ------------------------------------------------------------------ #
     # Работа с превью
@@ -504,6 +592,7 @@ class TemplateWizard(QtWidgets.QDialog):
         preview = Image.alpha_composite(img, overlay)
 
         scale = self._preview_scale()
+        self._preview_scale = scale
         if scale < 1.0:
             preview = preview.resize((max(1, round(preview.width * scale)),
                                       max(1, round(preview.height * scale))),
@@ -511,51 +600,73 @@ class TemplateWizard(QtWidgets.QDialog):
         self.preview_label.set_scale(scale)
         self.preview_label.setPixmap(pil_to_pixmap(preview))
 
+        # живой пример итогового бейджа (если вкладка активна)
+        if self.tabs.currentIndex() == 1:
+            self._update_example_preview(force_crop=False)
+
     def _on_preview_click(self, tx: int, ty: int) -> None:
+        """Клик: если попали в элемент — захватываем его для перетаскивания
+        (с сохранением смещения точки клика), иначе — ставим элемент в точку."""
         tw, th = self.template.size
         tx = min(max(0, tx), tw)
         ty = min(max(0, ty), th)
+        # размер уголка в координатах макета (на превью он всегда ~16 px)
+        handle = CORNER_HANDLE_SIZE / max(self._preview_scale, 1e-6)
         if self._mode == "photo":
             x, y, w, h = self.template.photo.place_on_badge
-            # клик по правому нижнему углу — начало изменения размера
-            if abs(tx - (x + w)) < CORNER_HANDLE_SIZE and abs(ty - (y + h)) < CORNER_HANDLE_SIZE:
-                self._drag = ("photo_resize", 0, 0)
+            on_corner = abs(tx - (x + w)) <= handle and abs(ty - (y + h)) <= handle
+            inside = x <= tx <= x + w and y <= ty <= y + h
+            if on_corner:
+                self._drag = "photo_resize"
+            elif inside:
+                self._drag = "photo_move"  # элемент остаётся на месте — «хватаем»
             else:
                 self.template.photo.place_on_badge = (tx, ty, w, h)
-                self._drag = ("photo_move", 0, 0)  # элемент уже у курсора
+                self._drag = "photo_move"
             self._sync_photo_spins()
         else:
             field = self._current_field()
             if field is not None:
-                field.anchor = (tx, ty)
-                self._drag = ("field_move", 0, 0)  # элемент уже у курсора
+                box_w = field.max_width or int(tw * 0.3)
+                box_h = max(20, int(field.font_size * 1.3))
+                ax, ay = field.anchor
+                inside = ax <= tx <= ax + box_w and ay <= ty <= ay + box_h
+                if inside:
+                    self._drag = "field_move"  # элемент остаётся на месте
+                else:
+                    field.anchor = (tx, ty)
+                    self._drag = "field_move"
                 self._sync_field_controls()
         self._update_preview()
 
     def _on_preview_move(self, dx: int, dy: int) -> None:
         if self._drag is None:
             return
-        kind, off_x, off_y = self._drag
         tw, th = self.template.size
-        if kind == "photo_move":
+        if self._drag == "photo_move":
             x, y, w, h = self.template.photo.place_on_badge
             nx = min(max(0, x + dx), tw - 1)
             ny = min(max(0, y + dy), th - 1)
             self.template.photo.place_on_badge = (nx, ny, w, h)
             self._sync_photo_spins()
-        elif kind == "photo_resize":
+        elif self._drag == "photo_resize":
             x, y, w, h = self.template.photo.place_on_badge
             nw = min(max(1, w + dx), tw - x)
             nh = min(max(1, h + dy), th - y)
             self.template.photo.place_on_badge = (x, y, nw, nh)
             self._sync_photo_spins()
-        elif kind == "field_move":
+        elif self._drag == "field_move":
             field = self._current_field()
             if field is not None:
                 ax, ay = field.anchor
                 field.anchor = (min(max(0, ax + dx), tw), min(max(0, ay + dy), th))
                 self._sync_field_controls()
         self._update_preview()
+
+    def _on_preview_released(self) -> None:
+        self._drag = None
+        if self.tabs.currentIndex() == 1:
+            self._update_example_preview(force_crop=self._photo_params_dirty)
 
     def _sync_photo_spins(self) -> None:
         x, y, w, h = self.template.photo.place_on_badge
@@ -564,6 +675,79 @@ class TemplateWizard(QtWidgets.QDialog):
             spin.blockSignals(True)
             spin.setValue(value)
             spin.blockSignals(False)
+
+    # ------------------------------------------------------------------ #
+    # Пример итогового бейджа
+    # ------------------------------------------------------------------ #
+    def _fill_example_photo_combo(self) -> None:
+        self.combo_example_photo.blockSignals(True)
+        self.combo_example_photo.clear()
+        for p in self._photos:
+            self.combo_example_photo.addItem(Path(p).name, p)
+        if self._photos:
+            self.combo_example_photo.setCurrentIndex(0)
+            self._example_photo = self._photos[0]
+        self.combo_example_photo.blockSignals(False)
+
+    def _on_tab_changed(self, index: int) -> None:
+        if index == 1:
+            self._update_example_preview(force_crop=True)
+
+    def _on_example_photo_changed(self, index: int) -> None:
+        if index < 0:
+            return
+        path = self.combo_example_photo.itemData(index)
+        if path:
+            self._example_photo = path
+            self._example_badge = None
+            self._update_example_preview(force_crop=True)
+
+    def _pick_example_photo(self) -> None:
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Выберите фото для примера", "", "Изображения (*.png *.jpg *.jpeg)")
+        if not filename:
+            return
+        self._example_photo = filename
+        self._example_badge = None
+        if filename not in self._photos:
+            self.combo_example_photo.addItem(Path(filename).name, filename)
+        self.combo_example_photo.setCurrentIndex(self.combo_example_photo.findData(filename))
+        self._update_example_preview(force_crop=True)
+
+    def _ensure_example_badge(self):
+        """Создаёт Badge по выбранному фото (один раз на фото)."""
+        if self._example_photo is None:
+            return None
+        if self._example_badge is not None and self._example_badge.get_url() == self._example_photo:
+            return self._example_badge
+        from badge_generator.BadgeGenerator import Badge
+        try:
+            self._example_badge = Badge(0, self._example_photo, self.template)
+            self._photo_params_dirty = True
+        except Exception as e:  # noqa: BLE001 — битое фото не должно ронять мастер
+            self.example_label.setText(f"Не удалось построить пример бейджа: {e}")
+            self._example_badge = None
+        return self._example_badge
+
+    def _update_example_preview(self, force_crop: bool = False) -> None:
+        if self._example_photo is None:
+            self.example_label.setText("Выберите фото, чтобы увидеть пример бейджа")
+            self.example_label.setPixmap(QtGui.QPixmap())
+            self.example_info.setText("")
+            return
+        badge = self._ensure_example_badge()
+        if badge is None:
+            return
+        if force_crop:
+            badge.apply_face_crop()
+            self._photo_params_dirty = False
+        badge.render()
+        pixmap = pil_to_pixmap(badge.get_preview_image((460, 320)))
+        self.example_label.setPixmap(pixmap)
+        self.example_info.setText(
+            f"Пример: {Path(self._example_photo).name}. Имя и фамилия берутся "
+            "из названия файла; порядок полей можно поменять на вкладке "
+            "«Расстановка элементов».")
 
     # ------------------------------------------------------------------ #
     # Сохранение

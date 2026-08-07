@@ -90,6 +90,8 @@ class Controller:
     def show_main_menu(self):
         if self.saver is not None:
             self.saver.close()
+        if self.constructor is not None:
+            self.constructor.close()
         self.main_menu = MainMenu()
         self.main_menu.next_requested.connect(self.show_constructor)
         self.main_menu.show()
@@ -104,6 +106,7 @@ class Controller:
             self.show_main_menu()
             return
         self.constructor.finished.connect(self.show_saver)
+        self.constructor.back_to_menu.connect(self.show_main_menu)
         self.main_menu.close()
         self.constructor.show()
 

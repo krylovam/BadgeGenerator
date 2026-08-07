@@ -86,6 +86,18 @@ python design/application_controller.py
 рассчитывается автоматически; при желании можно ограничить число бейджей
 на странице через `max_per_page` в `design/pdf_output.py`.
 
+Если PNG-файлы бейджей уже есть, их можно собрать в PDF:
+- кнопка **«PDF из готовых PNG…»** в окне сохранения;
+- или командная строка: `python tools/pngs_to_pdf.py out.pdf badge1.png badge2.png`.
+
+## Мастер настройки шаблона
+
+В мастере две вкладки: **«Расстановка элементов»** (клик по макету — поставить
+элемент, клик по элементу + перетаскивание — двигать, синий уголок у фото —
+растягивать) и **«Пример бейджа»** (реальный фотоучастник + подписи сразу
+видны на бейдже, обновляется в реальном времени). Параметры фото объяснены
+в `TESTING.md`.
+
 ## Тесты
 
 ```bash
@@ -107,10 +119,13 @@ detector/
 design/                   # интерфейс (PySide6 / Qt 6)
     application_controller.py
     main_menu.py / main_menu.ui / ui_main_menu.py
-    template_wizard.py    # мастер настройки шаблона
+    template_wizard.py    # мастер настройки шаблона (расстановка + пример)
     constructor.py / constructor_controller.py
-    saver.py / saver_controller.py
+    saver.py / saver_controller.py   # + сборка PDF из PNG
     pdf_output.py         # PDF с линиями отреза
+tools/
+    derive_config.py      # конфиг из пары «макет + готовый бейдж»
+    pngs_to_pdf.py        # PDF из нескольких PNG (CLI)
 assets/Montserrat.ttf     # шрифт по умолчанию
 ```
 

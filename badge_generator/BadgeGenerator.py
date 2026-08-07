@@ -60,6 +60,8 @@ class Badge:
         self._badge_image: Optional[Image.Image] = None
         self._extra: Dict[str, str] = {}
         self._rendered_font_sizes: Dict[str, int] = {}
+        self._face_box: Optional[Tuple[int, int, int, int]] = None
+        self._eye_center: Optional[Tuple[int, int]] = None
 
         self._surname, self._name = parse_name_from_filename(url)
         self.load_photo()
@@ -77,16 +79,24 @@ class Badge:
         self._photo = Image.open(self._url)
 
     def detect_face(self) -> None:
-        """Масштабирует фото по лицу и позиционирует окно кадрирования.
-
-        Горизонтально фото центрируется по середине отрезка между глазами
-        (YuNet даёт ключевые точки лица), вертикально — как раньше,
-        по прямоугольнику лица с учётом face_offset_y из конфига.
-        """
-        cw, ch = self._template.photo.crop_size
+        """Находит лицо на фото (YuNet) и применяет кадрирование по лицу."""
         detector = FaceDetector(self._url)
         detector.detect()
-        box = detector.get_boxes()
+        self._face_box = detector.get_boxes()
+        self._eye_center = detector.get_eye_center()
+        self.apply_face_crop()
+
+    def apply_face_crop(self) -> None:
+        """Масштабирует фото по лицу и позиционирует окно кадрирования.
+
+        Вызывается повторно, если в конфиге изменились параметры photo
+        (crop_size, face_scale, face_offset_y). Горизонтально фото
+        центрируется по середине отрезка между глазами (YuNet даёт
+        ключевые точки лица), вертикально — по прямоугольнику лица
+        с учётом face_offset_y из конфига.
+        """
+        cw, ch = self._template.photo.crop_size
+        box = self._face_box
         if box is None:
             # Лицо не найдено — показываем центр кадра
             self._photo_x = max(0, (self._photo.width - cw) // 2)
@@ -96,9 +106,8 @@ class Badge:
         scale = self._template.photo.face_scale * cw / w
         new_size = (round(self._photo.width * scale), round(self._photo.height * scale))
         self._photo = self._photo.resize(new_size, Image.Resampling.LANCZOS)
-        eye_center = detector.get_eye_center()
-        if eye_center is not None:
-            center_x = eye_center[0] * scale
+        if self._eye_center is not None:
+            center_x = self._eye_center[0] * scale
         else:
             center_x = (x + w / 2) * scale
         center_y = (y + h / 2) * scale * self._template.photo.face_offset_y

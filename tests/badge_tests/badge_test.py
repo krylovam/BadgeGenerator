@@ -165,3 +165,16 @@ def test_undo_state(template: BadgeTemplate) -> None:
     assert badge.get_photo_coords() == (state[0], state[1])
     assert badge.get_name() == state[4]
     assert badge.get_surname() == state[5]
+
+
+def test_apply_face_crop_recalculates_after_param_change() -> None:
+    """Изменение face_scale в конфиге пересчитывает кадрирование."""
+    template = BadgeTemplate.from_template_file(TEMPLATE_PATH)
+    badge = Badge(0, TEST_CASES[1].file_path, template)
+    coords_before = badge.get_photo_coords()
+    template.photo.face_scale = 0.8  # лицо крупнее -> кадр сдвигается
+    badge.apply_face_crop()
+    assert badge.get_photo_coords() != coords_before
+    cw, _ = template.photo.crop_size
+    _, _, photo_w, _, _, _ = badge.get_photo_state()
+    assert 0 <= badge.get_photo_coords()[0] <= photo_w - cw

@@ -102,7 +102,7 @@ class MainMenu(QtWidgets.QMainWindow):
         if self._template_path is None:
             return
         from design.template_wizard import TemplateWizard
-        wizard = TemplateWizard(self._template_path, parent=self)
+        wizard = TemplateWizard(self._template_path, photos=self._photos, parent=self)
         if wizard.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             self._load_template_config()
             self.check_errors()
