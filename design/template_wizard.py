@@ -158,6 +158,10 @@ class TemplateWizard(QtWidgets.QDialog):
             "background: #e8f0fe; color: #1e3a8a; border: 1px solid #bfdbfe;"
             "border-radius: 8px; padding: 8px 12px; font-weight: 600;")
         header.addWidget(self.hint_label, stretch=1)
+        self.btn_show_example = QtWidgets.QPushButton("Пример бейджа →")
+        self.btn_show_example.setToolTip(
+            "Показать готовый бейдж с реальным фото (вкладка «Пример бейджа»)")
+        header.addWidget(self.btn_show_example)
         self.btn_help = QtWidgets.QPushButton("?")
         self.btn_help.setFixedSize(32, 32)
         self.btn_help.setToolTip("Подробная инструкция")
@@ -205,6 +209,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.combo_example_photo.currentIndexChanged.connect(self._on_example_photo_changed)
         self.btn_pick_photo.clicked.connect(self._pick_example_photo)
+        self.btn_show_example.clicked.connect(lambda: self.tabs.setCurrentIndex(1))
 
         layout.addLayout(left, stretch=3)
 
@@ -314,6 +319,11 @@ class TemplateWizard(QtWidgets.QDialog):
         # кнопки
         buttons = QtWidgets.QHBoxLayout()
         buttons.addStretch(1)
+        self.btn_quick_config = QtWidgets.QPushButton("Быстрая настройка по готовому бейджу…")
+        self.btn_quick_config.setToolTip(
+            "Выберите готовый бейдж (пример результата) — координаты текста и "
+            "фото определятся автоматически")
+        buttons.addWidget(self.btn_quick_config)
         self.btn_cancel = QtWidgets.QPushButton("Отмена")
         self.btn_save = QtWidgets.QPushButton("Сохранить конфиг")
         self.btn_save.setDefault(True)
@@ -329,6 +339,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.btn_cancel.clicked.connect(self.reject)
         self.btn_save.clicked.connect(self._save)
         self.btn_help.clicked.connect(self._show_help)
+        self.btn_quick_config.clicked.connect(self._quick_config_from_ready)
 
         self._update_hint()
 
@@ -450,7 +461,8 @@ class TemplateWizard(QtWidgets.QDialog):
                 "Область фото: кликните по макету — левый верхний угол фото "
                 "встанет в точку клика. Кликните по самой области — и тяните "
                 "её мышью, чтобы двигать. Синий уголок в правом нижнем углу "
-                "растягивает область.")
+                "растягивает область. Готовый бейдж смотрите на вкладке "
+                "«Пример бейджа».")
         else:
             field = self._current_field()
             if field is not None:
@@ -458,7 +470,8 @@ class TemplateWizard(QtWidgets.QDialog):
                     f"Текстовое поле «{field.label}»: кликните по макету — "
                     "текст будет начинаться в точке клика. Кликните по полю и "
                     "тяните его мышью, чтобы двигать. Размер шрифта и другие "
-                    "параметры — справа в блоке «Текстовые поля».")
+                    "параметры — справа в блоке «Текстовые поля». Готовый бейдж "
+                    "смотрите на вкладке «Пример бейджа».")
 
     def _show_help(self) -> None:
         QtWidgets.QMessageBox.information(
@@ -748,6 +761,35 @@ class TemplateWizard(QtWidgets.QDialog):
             f"Пример: {Path(self._example_photo).name}. Имя и фамилия берутся "
             "из названия файла; порядок полей можно поменять на вкладке "
             "«Расстановка элементов».")
+
+    # ------------------------------------------------------------------ #
+    # Быстрая настройка по готовому бейджу
+    # ------------------------------------------------------------------ #
+    def _quick_config_from_ready(self) -> None:
+        ready, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Выберите готовый бейдж (пример результата)",
+            "", "Изображения (*.png *.jpg *.jpeg)")
+        if not ready:
+            return
+        from tools.derive_config import generate_config, save_config
+        try:
+            config = generate_config(self._template_path, Path(ready))
+        except ValueError as e:
+            QtWidgets.QMessageBox.critical(self, "Не удалось настроить", str(e))
+            return
+        except Exception as e:  # noqa: BLE001
+            QtWidgets.QMessageBox.critical(self, "Не удалось настроить", f"Ошибка: {e}")
+            return
+        self.template = BadgeTemplate(self._template_path, config)
+        self._sync_controls_from_template()
+        self._rebuild_mode_combo()
+        self._update_preview()
+        self._photo_params_dirty = True
+        QtWidgets.QMessageBox.information(
+            self, "Готово",
+            "Координаты текста и фото определены автоматически. Проверьте "
+            "поля на превью (вкладка «Расстановка элементов»), при необходимости "
+            "поправьте и нажмите «Сохранить конфиг».")
 
     # ------------------------------------------------------------------ #
     # Сохранение

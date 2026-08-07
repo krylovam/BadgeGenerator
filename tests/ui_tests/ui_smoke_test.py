@@ -44,6 +44,13 @@ def test_main_menu(app) -> None:
     menu.check_errors()
     assert menu.is_ready()
     assert menu.ui.pushButton_next.isEnabled()
+    # новые кнопки: пример бейджа и быстрая настройка
+    assert menu.ui.pushButton_preview_example.isEnabled()
+    assert menu.ui.pushButton_quick_config.isEnabled()
+    menu.toggle_example_badge()
+    assert menu._showing_example
+    menu.toggle_example_badge()
+    assert not menu._showing_example
     menu.close()
 
 

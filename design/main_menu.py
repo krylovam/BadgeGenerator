@@ -8,7 +8,7 @@ from PySide6 import QtWidgets
 from PySide6.QtCore import Signal
 
 from badge_generator.template import BadgeTemplate, TemplateConfigError
-from design.pixmap_utils import load_pixmap
+from design.pixmap_utils import load_pixmap, pil_to_pixmap
 from design.ui_main_menu import Ui_MainWindow
 
 UI_PATH = Path(__file__).resolve().parent / "main_menu.ui"
@@ -31,10 +31,13 @@ class MainMenu(QtWidgets.QMainWindow):
         self._template_path: Optional[Path] = None
         self._template: Optional[BadgeTemplate] = None
         self._config_missing = False
+        self._showing_example = False
 
         self.ui.pushButton_photos.clicked.connect(self.select_photos)
         self.ui.pushButton_template.clicked.connect(self.select_template)
         self.ui.pushButton_configure.clicked.connect(self.open_template_wizard)
+        self.ui.pushButton_quick_config.clicked.connect(self.quick_configure_from_ready)
+        self.ui.pushButton_preview_example.clicked.connect(self.toggle_example_badge)
         self.ui.pushButton_next.clicked.connect(self.next_requested.emit)
 
     # ------------------------------------------------------------------ #
@@ -63,6 +66,10 @@ class MainMenu(QtWidgets.QMainWindow):
         for pattern in PHOTO_TYPES:
             self._photos.extend(str(p) for p in sorted(folder.glob(pattern)))
         self.ui.label_photos_info.setText(f"Фото: найдено {len(self._photos)}")
+        self._showing_example = False
+        self.ui.pushButton_preview_example.setText("Показать пример бейджа с фото")
+        if self._template is not None:
+            self.ui.pushButton_preview_example.setEnabled(bool(self._photos))
         self.check_errors()
 
     def select_template(self) -> None:
@@ -87,7 +94,12 @@ class MainMenu(QtWidgets.QMainWindow):
             self._config_missing = True
             self.ui.label_template_info.setText(
                 f"Шаблон: {self._template_path.name} — конфиг не найден, нажмите «Настроить шаблон…»")
+        self._showing_example = False
         self.ui.pushButton_configure.setEnabled(self._template_path is not None)
+        self.ui.pushButton_quick_config.setEnabled(self._template_path is not None)
+        self.ui.pushButton_preview_example.setEnabled(
+            self._template_path is not None and bool(self._photos))
+        self.ui.pushButton_preview_example.setText("Показать пример бейджа с фото")
         self._update_preview()
 
     def _update_preview(self) -> None:
@@ -97,6 +109,60 @@ class MainMenu(QtWidgets.QMainWindow):
         else:
             self.ui.label_preview.clear()
             self.ui.label_preview.setText("Макет не выбран")
+
+    # ------------------------------------------------------------------ #
+    # Пример готового бейджа (превью)
+    # ------------------------------------------------------------------ #
+    def toggle_example_badge(self) -> None:
+        if self._showing_example:
+            self._showing_example = False
+            self.ui.pushButton_preview_example.setText("Показать пример бейджа с фото")
+            self._update_preview()
+            return
+        if self._template is None or not self._photos:
+            self.ui.error_label.setText("Сначала выберите папку с фото и шаблон")
+            return
+        try:
+            from badge_generator.BadgeGenerator import Badge
+            badge = Badge(0, self._photos[0], self._template)
+            preview = badge.get_preview_image((460, 320))
+        except Exception as e:  # noqa: BLE001
+            self.ui.error_label.setText(f"Не удалось построить пример: {e}")
+            return
+        self.ui.label_preview.setPixmap(pil_to_pixmap(preview))
+        self.ui.pushButton_preview_example.setText("Показать макет")
+        self._showing_example = True
+        self.ui.error_label.setText(
+            f"Пример: {Path(self._photos[0]).name} — имя/фамилия из названия файла")
+
+    # ------------------------------------------------------------------ #
+    # Быстрая настройка по готовому бейджу
+    # ------------------------------------------------------------------ #
+    def quick_configure_from_ready(self) -> None:
+        """Создаёт конфиг шаблона, сравнив макет и готовый бейдж."""
+        if self._template_path is None:
+            return
+        ready, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Выберите готовый бейдж (пример результата)",
+            "", "Изображения (*.png *.jpg *.jpeg)")
+        if not ready:
+            return
+        from tools.derive_config import generate_config, save_config
+        try:
+            config = generate_config(self._template_path, Path(ready))
+            out = save_config(config, self._template_path)
+        except ValueError as e:
+            QtWidgets.QMessageBox.critical(self, "Не удалось настроить", str(e))
+            return
+        except Exception as e:  # noqa: BLE001
+            QtWidgets.QMessageBox.critical(self, "Не удалось настроить", f"Ошибка: {e}")
+            return
+        self._load_template_config()
+        self.check_errors()
+        QtWidgets.QMessageBox.information(
+            self, "Готово",
+            f"Конфиг создан: {out}\n\nОпределены координаты текста и фото. "
+            "Откройте «Настроить шаблон…», чтобы проверить и поправить детали.")
 
     def open_template_wizard(self) -> None:
         if self._template_path is None:
@@ -123,3 +189,5 @@ class MainMenu(QtWidgets.QMainWindow):
         else:
             self.ui.error_label.setText("")
         self.ui.pushButton_next.setEnabled(self.is_ready())
+        self.ui.pushButton_preview_example.setEnabled(
+            self._template_path is not None and bool(self._photos))

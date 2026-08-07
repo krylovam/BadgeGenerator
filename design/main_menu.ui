@@ -119,6 +119,19 @@
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="pushButton_quick_config">
+          <property name="text">
+           <string>Быстрая настройка по готовому бейджу…</string>
+          </property>
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string>Выберите готовый бейдж (пример результата) — приложение само определит координаты текста и фото и создаст конфиг</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <spacer name="spacer_2">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
@@ -184,6 +197,19 @@
           </property>
           <property name="text">
            <string>Макет не выбран</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_preview_example">
+          <property name="text">
+           <string>Показать пример бейджа с фото</string>
+          </property>
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string>Собрать пример готового бейджа: первое фото из выбранной папки + имя/фамилия из названия файла</string>
           </property>
          </widget>
         </item>

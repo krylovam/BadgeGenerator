@@ -82,6 +82,12 @@ class Ui_MainWindow(object):
 
         self.left_column.addWidget(self.pushButton_configure)
 
+        self.pushButton_quick_config = QPushButton(self.centralwidget)
+        self.pushButton_quick_config.setObjectName(u"pushButton_quick_config")
+        self.pushButton_quick_config.setEnabled(False)
+
+        self.left_column.addWidget(self.pushButton_quick_config)
+
         self.spacer_2 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.left_column.addItem(self.spacer_2)
@@ -114,6 +120,12 @@ class Ui_MainWindow(object):
         self.label_preview.setAlignment(Qt.AlignCenter)
 
         self.right_column.addWidget(self.label_preview)
+
+        self.pushButton_preview_example = QPushButton(self.centralwidget)
+        self.pushButton_preview_example.setObjectName(u"pushButton_preview_example")
+        self.pushButton_preview_example.setEnabled(False)
+
+        self.right_column.addWidget(self.pushButton_preview_example)
 
 
         self.content_layout.addLayout(self.right_column)
@@ -155,9 +167,17 @@ class Ui_MainWindow(object):
         self.pushButton_template.setText(QCoreApplication.translate("MainWindow", u"\u0412\u044b\u0431\u0440\u0430\u0442\u044c \u0448\u0430\u0431\u043b\u043e\u043d", None))
         self.label_template_info.setText(QCoreApplication.translate("MainWindow", u"\u0428\u0430\u0431\u043b\u043e\u043d: \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d", None))
         self.pushButton_configure.setText(QCoreApplication.translate("MainWindow", u"\u041d\u0430\u0441\u0442\u0440\u043e\u0438\u0442\u044c \u0448\u0430\u0431\u043b\u043e\u043d\u2026", None))
+        self.pushButton_quick_config.setText(QCoreApplication.translate("MainWindow", u"\u0411\u044b\u0441\u0442\u0440\u0430\u044f \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430 \u043f\u043e \u0433\u043e\u0442\u043e\u0432\u043e\u043c\u0443 \u0431\u0435\u0439\u0434\u0436\u0443\u2026", None))
+#if QT_CONFIG(tooltip)
+        self.pushButton_quick_config.setToolTip(QCoreApplication.translate("MainWindow", u"\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0433\u043e\u0442\u043e\u0432\u044b\u0439 \u0431\u0435\u0439\u0434\u0436 (\u043f\u0440\u0438\u043c\u0435\u0440 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430) \u2014 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0441\u0430\u043c\u043e \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0438\u0442 \u043a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u044b \u0442\u0435\u043a\u0441\u0442\u0430 \u0438 \u0444\u043e\u0442\u043e \u0438 \u0441\u043e\u0437\u0434\u0430\u0441\u0442 \u043a\u043e\u043d\u0444\u0438\u0433", None))
+#endif // QT_CONFIG(tooltip)
         self.error_label.setText("")
         self.label_preview_title.setText(QCoreApplication.translate("MainWindow", u"\u041f\u0440\u0435\u0432\u044c\u044e \u043c\u0430\u043a\u0435\u0442\u0430:", None))
         self.label_preview.setText(QCoreApplication.translate("MainWindow", u"\u041c\u0430\u043a\u0435\u0442 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d", None))
+        self.pushButton_preview_example.setText(QCoreApplication.translate("MainWindow", u"\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043f\u0440\u0438\u043c\u0435\u0440 \u0431\u0435\u0439\u0434\u0436\u0430 \u0441 \u0444\u043e\u0442\u043e", None))
+#if QT_CONFIG(tooltip)
+        self.pushButton_preview_example.setToolTip(QCoreApplication.translate("MainWindow", u"\u0421\u043e\u0431\u0440\u0430\u0442\u044c \u043f\u0440\u0438\u043c\u0435\u0440 \u0433\u043e\u0442\u043e\u0432\u043e\u0433\u043e \u0431\u0435\u0439\u0434\u0436\u0430: \u043f\u0435\u0440\u0432\u043e\u0435 \u0444\u043e\u0442\u043e \u0438\u0437 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0439 \u043f\u0430\u043f\u043a\u0438 + \u0438\u043c\u044f/\u0444\u0430\u043c\u0438\u043b\u0438\u044f \u0438\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0444\u0430\u0439\u043b\u0430", None))
+#endif // QT_CONFIG(tooltip)
         self.pushButton_next.setText(QCoreApplication.translate("MainWindow", u"\u0414\u0430\u043b\u044c\u0448\u0435 \u2192", None))
     # retranslateUi
 

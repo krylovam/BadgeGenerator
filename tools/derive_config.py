@@ -109,20 +109,16 @@ def text_anchor_from_box(box, text: str, font_path: Path, font_size: int):
     return [bx - left, by - top]
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("template", type=Path, help="путь к макету (пустому)")
-    parser.add_argument("ready_badge", type=Path, help="путь к готовому бейджу")
-    parser.add_argument("--out", type=Path, default=None,
-                        help="куда сохранить конфиг (по умолчанию рядом с макетом)")
-    args = parser.parse_args()
+def generate_config(template_path: Path, ready_path: Path) -> dict:
+    """Строит конфиг шаблона по паре «макет + готовый бейдж».
 
-    template_path = Path(args.template)
-    ready_path = Path(args.ready_badge)
+    Возвращает dict-конфиг (как в JSON). При проблемах кидает ValueError
+    с понятным сообщением.
+    """
+    template_path = Path(template_path)
+    ready_path = Path(ready_path)
     if not template_path.is_file() or not ready_path.is_file():
-        print("Ошибка: файлы не найдены.", file=sys.stderr)
-        return 1
+        raise ValueError("Файлы не найдены.")
 
     tpl = load_rgb(template_path)
     ready = load_rgb(ready_path)
@@ -131,27 +127,17 @@ def main() -> int:
     boxes = changed_boxes(mask, img_w, img_h)
 
     if not boxes:
-        print("Не найдено изменений между макетом и готовым бейджем — "
-              "убедитесь, что это один и тот же макет.", file=sys.stderr)
-        return 1
+        raise ValueError("Не найдено изменений между макетом и готовым бейджем — "
+                         "убедитесь, что это один и тот же макет.")
 
     # Самая большая область — фото, остальные — текст
     photo_box = boxes[0] if boxes[0][4] >= PHOTO_MIN_AREA * img_w * img_h else None
     text_boxes = [b for b in boxes if b is not photo_box]
     text_boxes.sort(key=lambda b: (b[1], b[0]))  # сверху вниз, слева направо
 
-    if photo_box is None:
-        print("Предупреждение: большая область изменений (фото) не найдена. "
-              "Убедитесь, что готовый бейдж содержит вставленное фото.",
-              file=sys.stderr)
-    else:
-        px, py, pw, ph = photo_box[:4]
-        print(f"Область фото: x={px} y={py} w={pw} h={ph}")
-
     # Имя/фамилия из имени файла готового бейджа
     from badge_generator.BadgeGenerator import parse_name_from_filename
     surname, name = parse_name_from_filename(str(ready_path))
-    print(f"Имя из файла: {name!r} {surname!r}")
 
     font_path = PROJECT_ROOT / DEFAULT_FONT
     fields = []
@@ -172,10 +158,6 @@ def main() -> int:
             "auto_shrink": True,
             "uppercase": False,
         })
-        print(f"Текст «{field_id}»: якорь={anchor} размер≈{font_size}")
-
-    if not fields:
-        print("Текстовые поля не найдены.", file=sys.stderr)
 
     if photo_box is None:
         photo_cfg = {
@@ -185,8 +167,8 @@ def main() -> int:
             "face_offset_y": DEFAULT_FACE_OFFSET_Y,
             "remove_background": False,
         }
-        print("Проверьте область фото в мастере вручную.", file=sys.stderr)
     else:
+        px, py, pw, ph = photo_box[:4]
         photo_cfg = {
             "place_on_badge": [px, py, pw, ph],
             "crop_size": [pw, ph],
@@ -195,7 +177,7 @@ def main() -> int:
             "remove_background": False,
         }
 
-    config = {
+    return {
         "template_file": template_path.name,
         "badge_size_mm": [100, 70],
         "dpi": 300,
@@ -203,9 +185,34 @@ def main() -> int:
         "photo": photo_cfg,
     }
 
-    out = args.out or template_path.with_suffix(".json")
+
+def save_config(config: dict, template_path: Path, out: Path | None = None) -> Path:
+    """Сохраняет конфиг в JSON (по умолчанию рядом с макетом)."""
+    out = Path(out) if out else Path(template_path).with_suffix(".json")
     with open(out, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
+    return out
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("template", type=Path, help="путь к макету (пустому)")
+    parser.add_argument("ready_badge", type=Path, help="путь к готовому бейджу")
+    parser.add_argument("--out", type=Path, default=None,
+                        help="куда сохранить конфиг (по умолчанию рядом с макетом)")
+    args = parser.parse_args()
+
+    try:
+        config = generate_config(args.template, args.ready_badge)
+    except ValueError as e:
+        print(f"Ошибка: {e}", file=sys.stderr)
+        return 1
+
+    out = save_config(config, args.template, args.out)
+    print(f"Область фото: {config['photo']['place_on_badge']}")
+    for f in config["text_fields"]:
+        print(f"Текст «{f['id']}»: якорь={f['anchor']} размер≈{f['font_size']}")
     print(f"\nКонфиг сохранён: {out}")
     print("Проверьте его в мастере настройки шаблона: порядок полей (верхнее "
           "считается именем), размер шрифта и размер бейджа в мм.")
