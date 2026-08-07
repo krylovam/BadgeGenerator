@@ -82,11 +82,12 @@ def test_small_photo_no_black_padding(tmp_path) -> None:
 
 
 def test_rounded_corners_photo_area(tmp_path) -> None:
-    """Скругление углов области фото (border_radius): углы прозрачны,
-    центр непрозрачен, фото не выходит за область."""
+    """Скругление углов области фото (border_radius): фото ОБРЕЗАНО по
+    скруглённой маске — в углах виден фон макета (не прозрачные дырки),
+    внутри — фото."""
     import json
     tpl = tmp_path / "t.png"
-    Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
+    Image.new("RGB", (1000, 1000), (0, 120, 200)).save(tpl)  # синий фон макета
     photo = tmp_path / "photo.png"
     Image.new("RGB", (800, 800), (200, 30, 30)).save(photo)
     cfg = tmp_path / "t.json"
@@ -101,17 +102,12 @@ def test_rounded_corners_photo_area(tmp_path) -> None:
     template = BadgeTemplate.from_json(cfg)
     badge = Badge(0, str(photo), template)
     img = badge.get_photo()
-    assert img.mode == "RGBA"
-    a = img.getchannel("A")
-    # углы области — прозрачные (скругление)
+    # углы области — фон макета (синий), фото обрезано по скруглению
     for px, py in [(100, 100), (499, 100), (100, 599), (499, 599)]:
-        assert a.getpixel((px, py)) == 0, f"угол ({px},{py}) не прозрачен"
-    # центр — непрозрачный
-    assert a.getpixel((300, 350)) == 255
-    # внутри области (не у угла) — непрозрачный
-    assert a.getpixel((150, 150)) == 255
-    # за областью — белый макет
-    assert img.getpixel((90, 90))[:3] == (255, 255, 255)
+        assert img.getpixel((px, py))[:3] == (0, 120, 200), f"угол ({px},{py}) не фон"
+    # внутри области — фото (красное)
+    for px, py in [(150, 150), (300, 350), (498, 350), (300, 599)]:
+        assert img.getpixel((px, py))[:3] == (200, 30, 30), f"({px},{py}) не фото"
 
 
 def test_rounded_corners_zero_radius(tmp_path) -> None:

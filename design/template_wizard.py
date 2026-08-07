@@ -327,7 +327,8 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_border_radius.setValue(0)
         self.spin_border_radius.setSuffix(" px")
         self.spin_border_radius.setToolTip(
-            "Радиус скругления углов области фото (0 — прямые углы)")
+            "Радиус скругления углов области фото (0 — прямые углы). "
+            "Фото обрезается по скруглению, в углах виден фон макета.")
         self.check_remove_bg = QtWidgets.QCheckBox("вырезать человека с фото (убрать фон)")
         remove_bg_hint = QtWidgets.QLabel(
             "Используется библиотека rembg (как в оригинальном приложении). "
