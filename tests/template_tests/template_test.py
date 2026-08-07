@@ -232,9 +232,8 @@ def test_old_config_position_normalized_on_load(tmp_path) -> None:
     assert pos.align == "center"
     assert pos.lowercase is True
     assert pos.uppercase is False
-    # якорь сдвинут вправо на ~font_size*2, y не изменился
-    assert pos.anchor[0] == 100 + 60 * 2
-    assert pos.anchor[1] == 400
+    # якорь НЕ меняется (он означает центр текста — пользователь ставит сам)
+    assert pos.anchor == (100, 400)
 
 
 def test_remove_background_flag_roundtrip(tmp_path) -> None:
