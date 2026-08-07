@@ -384,3 +384,43 @@ def test_position_centered_in_area(tmp_path) -> None:
     assert abs(center - area_center) <= 2, f"центр {center} != {area_center}"
     # текст не выходит за область
     assert xs.min() >= 300 and xs.max() <= 900
+
+
+def test_center_align_without_width_keeps_left_edge(tmp_path) -> None:
+    """align=center без max_width (0): левый край текста остаётся в якоре
+    (никакого сдвига вокруг точки)."""
+    import json
+    import shutil
+
+    photo = tmp_path / "Иванов Иван Вожатый.png"
+    shutil.copy(TEST_CASES[1].file_path, photo)
+
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1200, 900), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 70],
+        "dpi": 300,
+        "name_format": "staff",
+        "text_fields": [
+            {"id": "name", "anchor": [100, 100], "font_size": 80, "align": "left"},
+            {"id": "surname", "anchor": [100, 250], "font_size": 80, "align": "left"},
+            {"id": "position", "label": "Должность", "anchor": [300, 400],
+             "align": "center", "font": "assets/Montserrat.ttf", "font_size": 60,
+             "max_width": 0, "auto_shrink": True, "uppercase": False,
+             "lowercase": True},
+        ],
+        "photo": {"place_on_badge": [100, 600, 400, 200], "crop_size": [400, 200]},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, str(photo), template)
+    img = badge.get_photo()
+    import numpy as np
+    arr = np.asarray(img.convert("RGB"), dtype=np.int16)
+    dark = (arr[:, :, 0] < 128) & (arr[:, :, 1] < 128) & (arr[:, :, 2] < 128)
+    zone = dark[380:470, :]
+    xs = np.where(zone.any(axis=0))[0]
+    assert len(xs) > 0
+    # левый край текста ≈ якорю (300) с учётом отступа шрифта (±8 px)
+    assert abs(xs.min() - 300) <= 8, f"левый край {xs.min()} != 300"

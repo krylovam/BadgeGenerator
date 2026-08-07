@@ -211,19 +211,13 @@ class BadgeTemplate:
             raise TemplateConfigError(f"id текстовых полей должны быть уникальны: {ids}")
         # Поле «Должность» (position): выравнивание по центру области,
         # нижний регистр. Якорь — ЛЕВЫЙ край области, max_width — её ширина;
-        # текст центрируется внутри этой области.
+        # текст центрируется внутри этой области. Если max_width=0 — левый
+        # край текста остаётся в якоре (ширина не задана, центрирования нет).
         position = self.get_text_field("position")
         if position is not None:
             position.align = "center"
             position.uppercase = False
             position.lowercase = True
-            if position.max_width <= 0:
-                # если ширина не задана — по умолчанию 80% ширины макета
-                try:
-                    w = Image.open(self.template_file).size[0]
-                    position.max_width = max(1, int(w * 0.8))
-                except OSError:
-                    position.max_width = 800
 
         name_format = str(data.get("name_format", DEFAULT_NAME_FORMAT)).lower()
         if name_format not in NAME_FORMATS:

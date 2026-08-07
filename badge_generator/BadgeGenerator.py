@@ -158,12 +158,13 @@ class Badge:
                 tw, th = right - left, bottom - top
         self._rendered_font_sizes[field.id] = font_size
         x, y = field.anchor
-        if field.align == "center" and field.max_width:
-            # Центрирование по ОБЛАСТИ: якорь — левый край области шириной
+        if field.align == "center":
+            # Центрирование по ОБЛАСТИ: якорь — ЛЕВЫЙ край области шириной
             # max_width, текст выравнивается по центру этой области.
-            x += (field.max_width - tw) // 2
-        elif field.align == "center":
-            x -= tw // 2
+            # Если ширина не задана (0) — левый край текста остаётся в якоре
+            # (никакого сдвига вокруг точки).
+            if field.max_width:
+                x += (field.max_width - tw) // 2
         elif field.align == "right":
             x -= tw
         fill = field.color
