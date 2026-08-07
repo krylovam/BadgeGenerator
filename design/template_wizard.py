@@ -208,6 +208,11 @@ class TemplateWizard(QtWidgets.QDialog):
         self.example_info.setStyleSheet("color: #555;")
         tab_example_layout.addWidget(self.example_info)
 
+        self.check_show_checker = QtWidgets.QCheckBox(
+            "Показывать прозрачность шахматной подложкой (только для проверки)")
+        self.check_show_checker.setChecked(False)
+        tab_example_layout.addWidget(self.check_show_checker)
+
         self.tabs.addTab(tab_place, "Расстановка элементов")
         self.tabs.addTab(tab_example, "Пример бейджа")
 
@@ -322,7 +327,10 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_offset = QtWidgets.QDoubleSpinBox()
         self.spin_face_offset.setRange(0.5, 3.0)
         self.spin_face_offset.setSingleStep(0.05)
-        self.check_remove_bg = QtWidgets.QCheckBox("удалять светлый фон с фото")
+        self.check_remove_bg = QtWidgets.QCheckBox("вырезать человека с фото (убрать фон)")
+        self.combo_bg_mode = QtWidgets.QComboBox()
+        self.combo_bg_mode.addItem("Вырезание человека (GrabCut) — любой фон", "grabcut")
+        self.combo_bg_mode.addItem("Светлый фон (по яркости)", "brightness")
         self.spin_bg_threshold = QtWidgets.QSpinBox()
         self.spin_bg_threshold.setRange(1, 254)
         self.spin_bg_threshold.setValue(200)
@@ -342,6 +350,7 @@ class TemplateWizard(QtWidgets.QDialog):
         photo_form.addRow("", face_scale_hint)
         photo_form.addRow("Смещение лица по Y:", self.spin_face_offset)
         photo_form.addRow("", self.check_remove_bg)
+        photo_form.addRow("Способ:", self.combo_bg_mode)
         photo_form.addRow("Порог фона (яркость):", self.spin_bg_threshold)
         form.addWidget(photo_box)
 
@@ -384,8 +393,10 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_scale.valueChanged.connect(self._on_photo_spin_changed)
         self.spin_face_offset.valueChanged.connect(self._on_photo_spin_changed)
         self.check_remove_bg.toggled.connect(self._on_photo_spin_changed)
+        self.combo_bg_mode.currentIndexChanged.connect(self._on_photo_spin_changed)
         self.spin_bg_threshold.valueChanged.connect(self._on_photo_spin_changed)
         self.radio_listener.toggled.connect(self._on_name_format_changed)
+        self.check_show_checker.toggled.connect(self._on_checker_toggled)
         for w in (self.edit_label, self.spin_font_size, self.spin_max_width,
                   self.combo_align, self.spin_anchor_x, self.spin_anchor_y):
             if isinstance(w, QtWidgets.QLineEdit):
@@ -445,7 +456,8 @@ class TemplateWizard(QtWidgets.QDialog):
                    self.spin_photo_w, self.spin_photo_h,
                    self.spin_crop_w, self.spin_crop_h,
                    self.spin_face_scale, self.spin_face_offset,
-                   self.spin_bg_threshold, self.check_remove_bg)
+                   self.spin_bg_threshold, self.check_remove_bg,
+                   self.combo_bg_mode)
         for w in blocked:
             w.blockSignals(True)
         self.spin_badge_w.setValue(t.badge_size_mm[0])
@@ -460,6 +472,8 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_scale.setValue(t.photo.face_scale)
         self.spin_face_offset.setValue(t.photo.face_offset_y)
         self.check_remove_bg.setChecked(t.photo.remove_background)
+        idx = self.combo_bg_mode.findData(t.photo.remove_bg_mode)
+        self.combo_bg_mode.setCurrentIndex(max(0, idx))
         self.spin_bg_threshold.setValue(t.photo.remove_bg_threshold)
         for w in blocked:
             w.blockSignals(False)
@@ -646,6 +660,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.template.photo.face_scale = self.spin_face_scale.value()
         self.template.photo.face_offset_y = self.spin_face_offset.value()
         self.template.photo.remove_background = self.check_remove_bg.isChecked()
+        self.template.photo.remove_bg_mode = self.combo_bg_mode.currentData() or "grabcut"
         self.template.photo.remove_bg_threshold = self.spin_bg_threshold.value()
         self._photo_params_dirty = True
         # фон/порог влияют на исходное фото — сбрасываем кэш примера,
@@ -654,6 +669,11 @@ class TemplateWizard(QtWidgets.QDialog):
         self._update_preview()
         if self.tabs.currentIndex() == 1:
             self._update_example_preview(force_crop=True)
+
+    def _on_checker_toggled(self) -> None:
+        """Переключение шахматной подложки — обновляем пример."""
+        if self.tabs.currentIndex() == 1:
+            self._update_example_preview(force_crop=False)
 
     # ------------------------------------------------------------------ #
     # Работа с превью
@@ -906,9 +926,8 @@ class TemplateWizard(QtWidgets.QDialog):
         if force_crop:
             badge.apply_face_crop()
             self._photo_params_dirty = False
-        # если включено удаление фона — показываем шахматную подложку,
-        # чтобы было видно прозрачность (в финальном бейдже её нет)
-        badge.render(preview_checkerboard=self.template.photo.remove_background)
+        # шахматная подложка — только по галочке (по умолчанию выключена)
+        badge.render(preview_checkerboard=self.check_show_checker.isChecked())
         pixmap = pil_to_pixmap(badge.get_preview_image((460, 320)))
         self.example_label.setPixmap(pixmap)
         self.example_info.setText(

@@ -71,13 +71,25 @@ class Badge:
         self._surname, self._name, self._position = parse_name_from_filename(
             url, mode=template.name_format)
         self.load_photo()
+        # Сначала детектируем лицо (нужно для GrabCut и кадрирования)
+        self._detect_face_only()
         if template.photo.remove_background:
-            # Импорт ленивый: opencv нужен только если функция включена в конфиге
-            from badge_generator.delete_background import remove_background
-            self._photo = remove_background(self._photo,
-                                            threshold=template.photo.remove_bg_threshold)
-        self.detect_face()
+            self._remove_background()
+        self.apply_face_crop()
         self.render()
+
+    def _remove_background(self) -> None:
+        """Удаляет фон / вырезает человека по настройкам конфига."""
+        from badge_generator.delete_background import (
+            remove_background,
+            remove_background_grabcut,
+        )
+        photo_cfg = self._template.photo
+        if photo_cfg.remove_bg_mode == "brightness":
+            self._photo = remove_background(self._photo,
+                                            threshold=photo_cfg.remove_bg_threshold)
+        else:
+            self._photo = remove_background_grabcut(self._photo, face_box=self._face_box)
 
     # ------------------------------------------------------------------ #
     # Инициализация
@@ -87,11 +99,15 @@ class Badge:
 
     def detect_face(self) -> None:
         """Находит лицо на фото (YuNet) и применяет кадрирование по лицу."""
+        self._detect_face_only()
+        self.apply_face_crop()
+
+    def _detect_face_only(self) -> None:
+        """Только детекция лица (без кадрирования) — хранит рамку и глаза."""
         detector = FaceDetector(self._url)
         detector.detect()
         self._face_box = detector.get_boxes()
         self._eye_center = detector.get_eye_center()
-        self.apply_face_crop()
 
     def apply_face_crop(self) -> None:
         """Масштабирует фото по лицу и позиционирует окно кадрирования.

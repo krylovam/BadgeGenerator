@@ -3,6 +3,7 @@ import json
 import os
 
 import pytest
+from PIL import Image
 
 from badge_generator.BadgeGenerator import parse_name_from_filename
 from badge_generator.template import (
@@ -200,3 +201,63 @@ def test_loading_config_preserves_photo_settings(tmp_path) -> None:
     assert template2.photo.place_on_badge == (123, 45, 400, 500)
     assert template2.photo.crop_size == (640, 800)
     assert template2.photo.face_scale == 0.42
+
+
+def test_old_config_position_normalized_on_load(tmp_path) -> None:
+    """Старый конфиг с position align=left нормализуется: center + lowercase."""
+    import json
+    import shutil
+    shutil.copy(TEMPLATE_PATH, tmp_path / "1отряд.png")
+    cfg = tmp_path / "1отряд.json"
+    # старый формат: align=left, uppercase, без lowercase
+    cfg.write_text(json.dumps({
+        "template_file": "1отряд.png",
+        "badge_size_mm": [100, 70],
+        "dpi": 300,
+        "name_format": "staff",
+        "text_fields": [
+            {"id": "name", "anchor": [100, 100], "font_size": 80},
+            {"id": "surname", "anchor": [100, 250], "font_size": 80},
+            {"id": "position", "label": "Должность", "anchor": [100, 400],
+             "align": "left", "font": "assets/Montserrat.ttf", "font_size": 60,
+             "max_width": 700, "auto_shrink": True, "uppercase": True},
+        ],
+        "photo": {"place_on_badge": [100, 600, 400, 200], "crop_size": [400, 200]},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_template_file(tmp_path / "1отряд.png")
+    pos = template.get_text_field("position")
+    assert pos is not None
+    assert pos.align == "center"
+    assert pos.lowercase is True
+    assert pos.uppercase is False
+
+
+def test_remove_bg_mode_roundtrip(tmp_path) -> None:
+    """Режим удаления фона сохраняется в JSON."""
+    import json
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (500, 500), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [50, 50],
+        "dpi": 300,
+        "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 30}],
+        "photo": {"place_on_badge": [10, 100, 200, 200], "crop_size": [200, 200],
+                  "remove_background": True, "remove_bg_mode": "brightness"},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    assert template.photo.remove_bg_mode == "brightness"
+    saved = template.save_json(tmp_path / "out.json")
+    loaded = BadgeTemplate.from_json(saved)
+    assert loaded.photo.remove_bg_mode == "brightness"
+    # по умолчанию — grabcut
+    cfg2 = tmp_path / "t2.json"
+    cfg2.write_text(json.dumps({
+        "template_file": "t.png", "badge_size_mm": [50, 50], "dpi": 300,
+        "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 30}],
+        "photo": {"place_on_badge": [10, 100, 200, 200], "crop_size": [200, 200],
+                  "remove_background": True},
+    }), encoding="utf-8")
+    t2 = BadgeTemplate.from_json(cfg2)
+    assert t2.photo.remove_bg_mode == "grabcut"

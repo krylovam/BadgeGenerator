@@ -80,8 +80,11 @@ python design/application_controller.py
   `crop_size` (окно вырезки из исходного фото) **подбирается автоматически**
   под пропорции области — вам нужно задать только область и `face_scale`
   (насколько крупно лицо). `face_offset_y` — смещение центра лица
-  по вертикали, `remove_background` — удалять светлый фон с фото
-  (алгоритм в `badge_generator/delete_background.py`).
+  по вертикали, `remove_background` — вырезать человека с фото,
+  `remove_bg_mode` — способ: `grabcut` (вырезание силуэта, работает на
+  любом фоне; по умолчанию) или `brightness` (по яркости светлого фона,
+  `remove_bg_threshold` — порог яркости). Алгоритмы — в
+  `badge_generator/delete_background.py`.
 
 ## Детекция лица
 

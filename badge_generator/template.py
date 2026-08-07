@@ -34,7 +34,10 @@ PHOTO_DEFAULTS = {
     "face_offset_y": DEFAULT_FACE_OFFSET_Y,
     "remove_background": False,
     "remove_bg_threshold": 200,
+    "remove_bg_mode": "grabcut",  # 'grabcut' — вырезание человека, 'brightness' — по яркости
 }
+
+BG_MODES = ("grabcut", "brightness")
 
 KNOWN_FIELD_IDS = ("name", "surname")
 
@@ -166,6 +169,11 @@ class PhotoConfig:
         except (TypeError, ValueError):
             raise TemplateConfigError("photo.remove_bg_threshold должно быть числом")
         self.remove_bg_threshold = min(254, max(1, self.remove_bg_threshold))
+        mode = str(data.get("remove_bg_mode", PHOTO_DEFAULTS["remove_bg_mode"])).lower()
+        if mode not in BG_MODES:
+            raise TemplateConfigError(
+                f"photo.remove_bg_mode должно быть grabcut/brightness, получено: {mode!r}")
+        self.remove_bg_mode: str = mode
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -175,6 +183,7 @@ class PhotoConfig:
             "face_offset_y": self.face_offset_y,
             "remove_background": self.remove_background,
             "remove_bg_threshold": self.remove_bg_threshold,
+            "remove_bg_mode": self.remove_bg_mode,
         }
 
 
@@ -210,6 +219,13 @@ class BadgeTemplate:
         ids = [f.id for f in self.text_fields]
         if len(set(ids)) != len(ids):
             raise TemplateConfigError(f"id текстовых полей должны быть уникальны: {ids}")
+        # Поле «Должность» всегда по центру и в нижнем регистре
+        # (нормализуем и старые сохранённые конфиги)
+        position = self.get_text_field("position")
+        if position is not None:
+            position.align = "center"
+            position.uppercase = False
+            position.lowercase = True
 
         name_format = str(data.get("name_format", DEFAULT_NAME_FORMAT)).lower()
         if name_format not in NAME_FORMATS:
