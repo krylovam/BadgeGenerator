@@ -128,7 +128,7 @@ def test_name_format_in_template_roundtrip(tmp_path) -> None:
 
 def test_staff_position_field_roundtrip(tmp_path) -> None:
     """Поле «Должность», добавленное как в главном меню (в память),
-    должно сохраняться в JSON и читаться обратно."""
+    должно сохраняться в JSON и читаться обратно (align=center, lowercase)."""
     import shutil
     shutil.copy(TEMPLATE_PATH, tmp_path / "1отряд.png")
     shutil.copy(f"{dir_path}/../assets/1отряд.json", tmp_path / "1отряд.json")
@@ -142,17 +142,61 @@ def test_staff_position_field_roundtrip(tmp_path) -> None:
         "id": "position",
         "label": "Должность",
         "anchor": anchor,
-        "align": surname.align,
+        "align": "center",
         "font": "assets/Montserrat.ttf",
         "font_size": max(40, int(surname.font_size * 0.65)),
         "max_width": surname.max_width,
         "auto_shrink": True,
         "uppercase": False,
+        "lowercase": True,
     }, template.config_dir))
 
     assert template.get_text_field("position") is not None
     saved = template.save_json(tmp_path / "custom.json")
     loaded = BadgeTemplate.from_json(saved)
     assert loaded.name_format == "staff"
-    assert loaded.get_text_field("position") is not None
-    assert loaded.get_text_field("position").label == "Должность"
+    pos = loaded.get_text_field("position")
+    assert pos is not None
+    assert pos.label == "Должность"
+    assert pos.align == "center"
+    assert pos.lowercase is True
+
+
+def test_loading_config_preserves_photo_settings(tmp_path) -> None:
+    """Загрузка сохранённого конфига не должна менять положение фото,
+    кадр и масштаб (регрессия: setValue спиннеров пересчитывал их)."""
+    import json
+    import shutil
+    shutil.copy(TEMPLATE_PATH, tmp_path / "1отряд.png")
+
+    cfg = tmp_path / "1отряд.json"
+    cfg.write_text(json.dumps({
+        "template_file": "1отряд.png",
+        "badge_size_mm": [100, 70],
+        "dpi": 300,
+        "name_format": "listener",
+        "text_fields": [
+            {"id": "name", "anchor": [100, 100], "font_size": 80},
+            {"id": "surname", "anchor": [100, 250], "font_size": 80},
+        ],
+        "photo": {
+            "place_on_badge": [123, 45, 400, 500],
+            "crop_size": [640, 800],
+            "face_scale": 0.42,
+            "face_offset_y": 1.15,
+            "remove_background": True,
+            "remove_bg_threshold": 195,
+        },
+    }), encoding="utf-8")
+
+    template = BadgeTemplate.from_template_file(tmp_path / "1отряд.png")
+    assert template.photo.place_on_badge == (123, 45, 400, 500)
+    assert template.photo.crop_size == (640, 800)
+    assert template.photo.face_scale == 0.42
+    assert template.photo.face_offset_y == 1.15
+    assert template.photo.remove_bg_threshold == 195
+    # повторная загрузка (имитация повторного открытия мастера) — то же самое
+    template2 = BadgeTemplate.from_json(cfg)
+    assert template2.photo.place_on_badge == (123, 45, 400, 500)
+    assert template2.photo.crop_size == (640, 800)
+    assert template2.photo.face_scale == 0.42

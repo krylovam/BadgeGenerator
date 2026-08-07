@@ -33,7 +33,7 @@ PHOTO_DEFAULTS = {
     "face_scale": DEFAULT_FACE_SCALE,
     "face_offset_y": DEFAULT_FACE_OFFSET_Y,
     "remove_background": False,
-    "remove_bg_threshold": 225,
+    "remove_bg_threshold": 200,
 }
 
 KNOWN_FIELD_IDS = ("name", "surname")
@@ -124,6 +124,7 @@ class TextFieldConfig:
             raise TemplateConfigError(f"text_fields['{self.id}'].max_width должно быть числом")
         self.auto_shrink: bool = _as_bool(data.get("auto_shrink", False), f"text_fields['{self.id}'].auto_shrink")
         self.uppercase: bool = _as_bool(data.get("uppercase", False), f"text_fields['{self.id}'].uppercase")
+        self.lowercase: bool = _as_bool(data.get("lowercase", False), f"text_fields['{self.id}'].lowercase")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -137,6 +138,7 @@ class TextFieldConfig:
             "max_width": self.max_width,
             "auto_shrink": self.auto_shrink,
             "uppercase": self.uppercase,
+            "lowercase": self.lowercase,
         }
 
 

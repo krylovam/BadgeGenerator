@@ -325,10 +325,10 @@ class TemplateWizard(QtWidgets.QDialog):
         self.check_remove_bg = QtWidgets.QCheckBox("удалять светлый фон с фото")
         self.spin_bg_threshold = QtWidgets.QSpinBox()
         self.spin_bg_threshold.setRange(1, 254)
-        self.spin_bg_threshold.setValue(225)
+        self.spin_bg_threshold.setValue(200)
         self.spin_bg_threshold.setToolTip(
             "Пиксели ярче этого значения считаются фоном. Если фон не удаляется "
-            "полностью — уменьшите значение (например 210).")
+            "полностью — уменьшите значение (например 180).")
         face_scale_hint = QtWidgets.QLabel(
             "0.3 — по пояс · 0.4–0.5 — портрет (рекомендуется) · 0.7–1.0 — крупно, только лицо")
         face_scale_hint.setStyleSheet("color: #667; font-size: 11px;")
@@ -436,6 +436,18 @@ class TemplateWizard(QtWidgets.QDialog):
 
     def _sync_controls_from_template(self) -> None:
         t = self.template
+        # Блокируем сигналы при установке значений: иначе каждый setValue
+        # триггерит _on_photo_spin_changed, который видит «изменение области»
+        # по промежуточным значениям и пересчитывает кадр и face_scale —
+        # сохранённые настройки положения фото слетают.
+        blocked = (self.spin_badge_w, self.spin_badge_h, self.spin_dpi,
+                   self.spin_photo_x, self.spin_photo_y,
+                   self.spin_photo_w, self.spin_photo_h,
+                   self.spin_crop_w, self.spin_crop_h,
+                   self.spin_face_scale, self.spin_face_offset,
+                   self.spin_bg_threshold, self.check_remove_bg)
+        for w in blocked:
+            w.blockSignals(True)
         self.spin_badge_w.setValue(t.badge_size_mm[0])
         self.spin_badge_h.setValue(t.badge_size_mm[1])
         self.spin_dpi.setValue(t.dpi)
@@ -449,6 +461,8 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_offset.setValue(t.photo.face_offset_y)
         self.check_remove_bg.setChecked(t.photo.remove_background)
         self.spin_bg_threshold.setValue(t.photo.remove_bg_threshold)
+        for w in blocked:
+            w.blockSignals(False)
         # тип бейджа
         self.radio_listener.blockSignals(True)
         self.radio_staff.blockSignals(True)
@@ -459,8 +473,9 @@ class TemplateWizard(QtWidgets.QDialog):
         self._rebuild_fields_list()
         self._rebuild_mode_combo()
         self._sync_field_controls()
-        # автоматически подгоняем кадр под пропорции области (без изменения масштаба)
-        self._auto_fit_crop()
+        # НЕ подгоняем кадр при загрузке существующего конфига: сохранённые
+        # crop_size/face_scale/place_on_badge остаются как есть. Подгонка
+        # происходит только при интерактивном изменении области в мастере.
         # если тип «педсостав», а поля должности нет — добавить
         if self.template.name_format == "staff" and self.template.get_text_field("position") is None:
             self._on_name_format_changed()
@@ -633,6 +648,9 @@ class TemplateWizard(QtWidgets.QDialog):
         self.template.photo.remove_background = self.check_remove_bg.isChecked()
         self.template.photo.remove_bg_threshold = self.spin_bg_threshold.value()
         self._photo_params_dirty = True
+        # фон/порог влияют на исходное фото — сбрасываем кэш примера,
+        # чтобы Badge пересоздался с новыми параметрами
+        self._example_badge = None
         self._update_preview()
         if self.tabs.currentIndex() == 1:
             self._update_example_preview(force_crop=True)
@@ -763,12 +781,13 @@ class TemplateWizard(QtWidgets.QDialog):
                 "id": "position",
                 "label": "Должность",
                 "anchor": anchor,
-                "align": surname.align,
+                "align": "center",
                 "font": "assets/Montserrat.ttf",
                 "font_size": max(40, int(surname.font_size * 0.65)),
                 "max_width": surname.max_width,
                 "auto_shrink": True,
                 "uppercase": False,
+                "lowercase": True,
             }, self.template.config_dir))
         self._rebuild_fields_list()
         self._rebuild_mode_combo()

@@ -125,12 +125,13 @@ class MainMenu(QtWidgets.QMainWindow):
             "id": "position",
             "label": "Должность",
             "anchor": anchor,
-            "align": surname.align,
+            "align": "center",
             "font": "assets/Montserrat.ttf",
             "font_size": max(40, int(surname.font_size * 0.65)),
             "max_width": surname.max_width,
             "auto_shrink": True,
             "uppercase": False,
+            "lowercase": True,
         }, self._template.config_dir))
 
     def _sync_badge_type_controls(self) -> None:

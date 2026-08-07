@@ -136,6 +136,8 @@ class Badge:
     def _draw_text(self, draw: ImageDraw.ImageDraw, field: TextFieldConfig, text: str) -> None:
         if field.uppercase:
             text = text.upper()
+        elif field.lowercase:
+            text = text.lower()
         font_size = field.font_size
         font = ImageFont.truetype(str(field.font), size=font_size)
         left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
