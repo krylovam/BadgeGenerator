@@ -323,17 +323,11 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_offset.setRange(0.5, 3.0)
         self.spin_face_offset.setSingleStep(0.05)
         self.check_remove_bg = QtWidgets.QCheckBox("вырезать человека с фото (убрать фон)")
-        self.combo_bg_mode = QtWidgets.QComboBox()
-        self.combo_bg_mode.addItem("Нейросеть rembg — как в оригинале (рекомендуется)", "rembg")
-        self.combo_bg_mode.addItem("Нейросеть U²-Net (встроенная, OpenCV)", "unet")
-        self.combo_bg_mode.addItem("Вырезание человека (GrabCut)", "grabcut")
-        self.combo_bg_mode.addItem("Светлый фон (по яркости)", "brightness")
-        self.spin_bg_threshold = QtWidgets.QSpinBox()
-        self.spin_bg_threshold.setRange(1, 254)
-        self.spin_bg_threshold.setValue(200)
-        self.spin_bg_threshold.setToolTip(
-            "Пиксели ярче этого значения считаются фоном. Если фон не удаляется "
-            "полностью — уменьшите значение (например 180).")
+        remove_bg_hint = QtWidgets.QLabel(
+            "Используется библиотека rembg (как в оригинальном приложении). "
+            "Модель скачается один раз при первом использовании.")
+        remove_bg_hint.setStyleSheet("color: #667; font-size: 11px;")
+        remove_bg_hint.setWordWrap(True)
         face_scale_hint = QtWidgets.QLabel(
             "0.3 — по пояс · 0.4–0.5 — портрет (рекомендуется) · 0.7–1.0 — крупно, только лицо")
         face_scale_hint.setStyleSheet("color: #667; font-size: 11px;")
@@ -347,8 +341,7 @@ class TemplateWizard(QtWidgets.QDialog):
         photo_form.addRow("", face_scale_hint)
         photo_form.addRow("Смещение лица по Y:", self.spin_face_offset)
         photo_form.addRow("", self.check_remove_bg)
-        photo_form.addRow("Способ:", self.combo_bg_mode)
-        photo_form.addRow("Порог фона (яркость):", self.spin_bg_threshold)
+        photo_form.addRow("", remove_bg_hint)
         form.addWidget(photo_box)
 
         form.addStretch(1)
@@ -390,8 +383,6 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_scale.valueChanged.connect(self._on_photo_spin_changed)
         self.spin_face_offset.valueChanged.connect(self._on_photo_spin_changed)
         self.check_remove_bg.toggled.connect(self._on_photo_spin_changed)
-        self.combo_bg_mode.currentIndexChanged.connect(self._on_photo_spin_changed)
-        self.spin_bg_threshold.valueChanged.connect(self._on_photo_spin_changed)
         self.radio_listener.toggled.connect(self._on_name_format_changed)
         for w in (self.edit_label, self.spin_font_size, self.spin_max_width,
                   self.combo_align, self.spin_anchor_x, self.spin_anchor_y):
@@ -452,8 +443,7 @@ class TemplateWizard(QtWidgets.QDialog):
                    self.spin_photo_w, self.spin_photo_h,
                    self.spin_crop_w, self.spin_crop_h,
                    self.spin_face_scale, self.spin_face_offset,
-                   self.spin_bg_threshold, self.check_remove_bg,
-                   self.combo_bg_mode)
+                   self.check_remove_bg)
         for w in blocked:
             w.blockSignals(True)
         self.spin_badge_w.setValue(t.badge_size_mm[0])
@@ -468,9 +458,6 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_scale.setValue(t.photo.face_scale)
         self.spin_face_offset.setValue(t.photo.face_offset_y)
         self.check_remove_bg.setChecked(t.photo.remove_background)
-        idx = self.combo_bg_mode.findData(t.photo.remove_bg_mode)
-        self.combo_bg_mode.setCurrentIndex(max(0, idx))
-        self.spin_bg_threshold.setValue(t.photo.remove_bg_threshold)
         for w in blocked:
             w.blockSignals(False)
         # тип бейджа
@@ -656,8 +643,6 @@ class TemplateWizard(QtWidgets.QDialog):
         self.template.photo.face_scale = self.spin_face_scale.value()
         self.template.photo.face_offset_y = self.spin_face_offset.value()
         self.template.photo.remove_background = self.check_remove_bg.isChecked()
-        self.template.photo.remove_bg_mode = self.combo_bg_mode.currentData() or "grabcut"
-        self.template.photo.remove_bg_threshold = self.spin_bg_threshold.value()
         self._photo_params_dirty = True
         # фон/порог влияют на исходное фото — сбрасываем кэш примера,
         # чтобы Badge пересоздался с новыми параметрами

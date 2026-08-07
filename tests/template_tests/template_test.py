@@ -186,7 +186,9 @@ def test_loading_config_preserves_photo_settings(tmp_path) -> None:
             "face_scale": 0.42,
             "face_offset_y": 1.15,
             "remove_background": True,
+            # старые ключи, которых больше нет — должны игнорироваться
             "remove_bg_threshold": 195,
+            "remove_bg_mode": "brightness",
         },
     }), encoding="utf-8")
 
@@ -195,7 +197,7 @@ def test_loading_config_preserves_photo_settings(tmp_path) -> None:
     assert template.photo.crop_size == (640, 800)
     assert template.photo.face_scale == 0.42
     assert template.photo.face_offset_y == 1.15
-    assert template.photo.remove_bg_threshold == 195
+    assert template.photo.remove_background is True
     # повторная загрузка (имитация повторного открытия мастера) — то же самое
     template2 = BadgeTemplate.from_json(cfg)
     assert template2.photo.place_on_badge == (123, 45, 400, 500)
@@ -231,8 +233,8 @@ def test_old_config_position_kept_on_load(tmp_path) -> None:
     assert pos.anchor == (100, 400)
 
 
-def test_remove_bg_mode_roundtrip(tmp_path) -> None:
-    """Режим удаления фона сохраняется в JSON."""
+def test_remove_background_flag_roundtrip(tmp_path) -> None:
+    """Флаг remove_background сохраняется в JSON, старые ключи игнорируются."""
     import json
     tpl = tmp_path / "t.png"
     Image.new("RGB", (500, 500), (255, 255, 255)).save(tpl)
@@ -246,17 +248,8 @@ def test_remove_bg_mode_roundtrip(tmp_path) -> None:
                   "remove_background": True, "remove_bg_mode": "brightness"},
     }), encoding="utf-8")
     template = BadgeTemplate.from_json(cfg)
-    assert template.photo.remove_bg_mode == "brightness"
+    assert template.photo.remove_background is True
     saved = template.save_json(tmp_path / "out.json")
     loaded = BadgeTemplate.from_json(saved)
-    assert loaded.photo.remove_bg_mode == "brightness"
-    # по умолчанию — rembg
-    cfg2 = tmp_path / "t2.json"
-    cfg2.write_text(json.dumps({
-        "template_file": "t.png", "badge_size_mm": [50, 50], "dpi": 300,
-        "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 30}],
-        "photo": {"place_on_badge": [10, 100, 200, 200], "crop_size": [200, 200],
-                  "remove_background": True},
-    }), encoding="utf-8")
-    t2 = BadgeTemplate.from_json(cfg2)
-    assert t2.photo.remove_bg_mode == "rembg"
+    assert loaded.photo.remove_background is True
+    assert "remove_bg_mode" not in json.loads(saved.read_text(encoding="utf-8"))["photo"]

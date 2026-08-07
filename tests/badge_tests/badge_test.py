@@ -241,9 +241,10 @@ def test_listener_badge_ignores_extra_tokens(tmp_path) -> None:
     assert badge.get_position() == ""
 
 
-def test_unet_background_removal_in_badge(tmp_path) -> None:
-    """U²-Net вырезает человека: бейдж RGBA, есть прозрачные пиксели,
-    а фото не выходит за границы области."""
+def test_photo_stays_inside_area_bounds(tmp_path) -> None:
+    """Фото не выходит за границы области: пиксели сразу за областью —
+    цвет макета (белый), в том числе при несовпадении пропорций кадра
+    и области."""
     import json
     tpl = tmp_path / "t.png"
     Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
@@ -253,26 +254,49 @@ def test_unet_background_removal_in_badge(tmp_path) -> None:
         "badge_size_mm": [100, 100],
         "dpi": 300,
         "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 50}],
-        "photo": {"place_on_badge": [100, 100, 400, 500], "crop_size": [400, 500],
-                  "face_scale": 0.45, "remove_background": True,
-                  "remove_bg_mode": "unet"},
+        # пропорции кадра (1290x1470) НЕ совпадают с областью (400x500)
+        "photo": {"place_on_badge": [100, 100, 400, 500], "crop_size": [1290, 1470],
+                  "face_scale": 0.45},
     }), encoding="utf-8")
     template = BadgeTemplate.from_json(cfg)
     badge = Badge(0, TEST_CASES[1].file_path, template)
     img = badge.get_photo()
-    assert img.mode == "RGBA"
-    # есть прозрачные пиксели (фон удалён)
-    assert img.getchannel("A").getextrema()[0] < 255
-    # фото не вылезает за границы области: пиксели сразу за областью — белые
     x, y, w, h = template.photo.place_on_badge
     for px, py in [(x - 1, y + h // 2), (x + w + 1, y + h // 2),
                    (x + w // 2, y - 1), (x + w // 2, y + h + 1)]:
         if 0 <= px < img.width and 0 <= py < img.height:
-            assert img.getpixel((px, py))[:3] == (255, 255, 255), f"фото вылезло за границу в ({px},{py})"
+            assert img.getpixel((px, py))[:3] == (255, 255, 255), \
+                f"фото вылезло за границу области в ({px},{py})"
 
 
-def test_remove_bg_threshold_config_roundtrip(tmp_path) -> None:
-    """Порог удаления фона сохраняется в конфиг."""
+def test_photo_clipped_when_area_outside_template(tmp_path) -> None:
+    """Если область фото в конфиге выходит за пределы макета — рендер
+    не падает, фото обрезается по краю, края макета не закрашиваются."""
+    import json
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 100],
+        "dpi": 300,
+        "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 50}],
+        # область (x=700..1100, y=600..1100) выходит за правый и нижний край
+        "photo": {"place_on_badge": [700, 600, 400, 500], "crop_size": [1290, 1470],
+                  "face_scale": 0.45},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, TEST_CASES[1].file_path, template)
+    img = badge.get_photo()
+    assert img.size == (1000, 1000)
+    # рендер не упал; области вне фото-зоны остались белыми (макет)
+    assert img.getpixel((0, 0))[:3] == (255, 255, 255)
+    assert img.getpixel((500, 200))[:3] == (255, 255, 255)
+
+
+def test_remove_background_flag_roundtrip(tmp_path) -> None:
+    """Флаг remove_background сохраняется в конфиг; лишние старые ключи
+    (remove_bg_mode/remove_bg_threshold) игнорируются."""
     import json
     tpl = tmp_path / "t.png"
     Image.new("RGB", (500, 500), (255, 255, 255)).save(tpl)
@@ -283,14 +307,16 @@ def test_remove_bg_threshold_config_roundtrip(tmp_path) -> None:
         "dpi": 300,
         "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 30}],
         "photo": {"place_on_badge": [10, 100, 200, 200], "crop_size": [200, 200],
-                  "remove_background": True, "remove_bg_threshold": 210},
+                  "remove_background": True,
+                  "remove_bg_mode": "brightness", "remove_bg_threshold": 150},
     }), encoding="utf-8")
     template = BadgeTemplate.from_json(cfg)
     assert template.photo.remove_background is True
-    assert template.photo.remove_bg_threshold == 210
     saved = template.save_json(tmp_path / "out.json")
     loaded = BadgeTemplate.from_json(saved)
-    assert loaded.photo.remove_bg_threshold == 210
+    assert loaded.photo.remove_background is True
+    # старые ключи не попадают в новый конфиг
+    assert "remove_bg_mode" not in json.loads(saved.read_text(encoding="utf-8"))["photo"]
 
 
 def test_crop_size_fits_photo_area_proportions() -> None:

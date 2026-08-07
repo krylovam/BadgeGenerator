@@ -80,14 +80,9 @@ python design/application_controller.py
   `crop_size` (окно вырезки из исходного фото) **подбирается автоматически**
   под пропорции области — вам нужно задать только область и `face_scale`
   (насколько крупно лицо). `face_offset_y` — смещение центра лица
-  по вертикали, `remove_background` — вырезать человека с фото,
-  `remove_bg_mode` — способ: `rembg` (библиотека rembg, как в оригинальном
-  приложении; по умолчанию), `unet` (та же модель U²-Net через OpenCV DNN),
-  `grabcut` (силуэт по рамке лица) или `brightness` (по яркости светлого
-  фона, `remove_bg_threshold` — порог яркости). Модель
-  `badge_generator/models/u2netp.onnx` используется локально, без
-  скачивания из интернета. Алгоритмы — в
-  `badge_generator/delete_background.py`.
+  по вертикали, `remove_background` — вырезать человека с фото
+  библиотекой `rembg` (как в оригинальном приложении;
+  `badge_generator/delete_background.py`).
 
 ## Детекция лица
 
@@ -131,8 +126,7 @@ UI-тесты работают в offscreen-режиме и пропускают
 badge_generator/          # ядро (без Qt)
     template.py           # конфиг шаблона (JSON)
     BadgeGenerator.py     # генерация бейджа
-    delete_background.py  # вырезание человека (U²-Net / GrabCut / по яркости)
-    models/u2netp.onnx    # модель U²-Net для вырезания фона
+    delete_background.py  # вырезание человека (rembg)
 detector/
     FaceDetection.py      # детекция лица: YuNet (ONNX) + каскад Хаара
     utils/                # модели: face_detection_yunet_2023mar.onnx, cascade.xml

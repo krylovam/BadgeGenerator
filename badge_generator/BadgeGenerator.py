@@ -79,31 +79,9 @@ class Badge:
         self.render()
 
     def _remove_background(self) -> None:
-        """Удаляет фон / вырезает человека по настройкам конфига."""
-        from badge_generator.delete_background import (
-            remove_background,
-            remove_background_grabcut,
-            remove_background_rembg,
-            remove_background_unet,
-        )
-        photo_cfg = self._template.photo
-        if photo_cfg.remove_bg_mode == "rembg":
-            try:
-                self._photo = remove_background_rembg(self._photo)
-                return
-            except (ImportError, FileNotFoundError) as e:
-                print(f"ВНИМАНИЕ: rembg недоступен ({e}), пробую встроенную U²-Net")
-        if photo_cfg.remove_bg_mode in ("rembg", "unet"):
-            try:
-                self._photo = remove_background_unet(self._photo)
-                return
-            except FileNotFoundError:
-                print("ВНИМАНИЕ: u2netp.onnx не найден, использую GrabCut")
-        if photo_cfg.remove_bg_mode == "brightness":
-            self._photo = remove_background(self._photo,
-                                            threshold=photo_cfg.remove_bg_threshold)
-        else:
-            self._photo = remove_background_grabcut(self._photo, face_box=self._face_box)
+        """Вырезает человека с фото библиотекой rembg."""
+        from badge_generator.delete_background import remove_background_rembg
+        self._photo = remove_background_rembg(self._photo)
 
     # ------------------------------------------------------------------ #
     # Инициализация
@@ -214,6 +192,24 @@ class Badge:
                 cropped = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
             paste_x = x + (pw - new_w) // 2
             paste_y = y + (ph - new_h) // 2
+            # Страховка: не даём фото рисоваться за пределами макета.
+            # Если область в конфиге выходит за край — обрезаем кадр по краю.
+            if paste_x < 0:
+                cropped = cropped.crop((-paste_x, 0, new_w, new_h))
+                new_w = cropped.width
+                paste_x = 0
+            if paste_y < 0:
+                cropped = cropped.crop((0, -paste_y, new_w, new_h))
+                new_h = cropped.height
+                paste_y = 0
+            over_w = paste_x + new_w - img.width
+            over_h = paste_y + new_h - img.height
+            if over_w > 0:
+                cropped = cropped.crop((0, 0, max(1, new_w - over_w), new_h))
+                new_w = cropped.width
+            if over_h > 0:
+                cropped = cropped.crop((0, 0, new_w, max(1, new_h - over_h)))
+                new_h = cropped.height
             if cropped.mode == "RGBA":
                 # прозрачность сохраняем: вклеиваем с альфой
                 if img.mode == "RGBA":
