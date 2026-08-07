@@ -7,6 +7,7 @@ import pytest
 from badge_generator.BadgeGenerator import parse_name_from_filename
 from badge_generator.template import (
     BadgeTemplate,
+    TextFieldConfig,
     TemplateConfigError,
     resolve_font_path,
 )
@@ -123,3 +124,35 @@ def test_name_format_in_template_roundtrip(tmp_path) -> None:
     saved = template.save_json(tmp_path / "custom.json")
     loaded = BadgeTemplate.from_json(saved)
     assert loaded.name_format == "staff"
+
+
+def test_staff_position_field_roundtrip(tmp_path) -> None:
+    """Поле «Должность», добавленное как в главном меню (в память),
+    должно сохраняться в JSON и читаться обратно."""
+    import shutil
+    shutil.copy(TEMPLATE_PATH, tmp_path / "1отряд.png")
+    shutil.copy(f"{dir_path}/../assets/1отряд.json", tmp_path / "1отряд.json")
+    template = BadgeTemplate.from_template_file(tmp_path / "1отряд.png")
+    template.name_format = "staff"
+
+    # то же, что делает main_menu._add_position_field
+    surname = template.get_text_field("surname")
+    anchor = (surname.anchor[0], surname.anchor[1] + int(surname.font_size * 1.5))
+    template.text_fields.append(TextFieldConfig({
+        "id": "position",
+        "label": "Должность",
+        "anchor": anchor,
+        "align": surname.align,
+        "font": "assets/Montserrat.ttf",
+        "font_size": max(40, int(surname.font_size * 0.65)),
+        "max_width": surname.max_width,
+        "auto_shrink": True,
+        "uppercase": False,
+    }, template.config_dir))
+
+    assert template.get_text_field("position") is not None
+    saved = template.save_json(tmp_path / "custom.json")
+    loaded = BadgeTemplate.from_json(saved)
+    assert loaded.name_format == "staff"
+    assert loaded.get_text_field("position") is not None
+    assert loaded.get_text_field("position").label == "Должность"

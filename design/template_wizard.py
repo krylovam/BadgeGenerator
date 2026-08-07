@@ -94,7 +94,7 @@ class _PreviewLabel(QtWidgets.QLabel):
 class TemplateWizard(QtWidgets.QDialog):
     """Диалог настройки конфигурации шаблона (JSON рядом с макетом)."""
 
-    def __init__(self, template_path: Path, photos=None,
+    def __init__(self, template_path: Path, photos=None, template=None,
                  parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
         self.setWindowTitle("Настройка шаблона бейджа")
@@ -106,14 +106,19 @@ class TemplateWizard(QtWidgets.QDialog):
         self._photo_params_dirty = False
         self._preview_scale = 1.0
 
-        # Загружаем существующий конфиг или создаём настройки по умолчанию
+        # Загружаем существующий конфиг или создаём настройки по умолчанию.
+        # Если передан template (из главного меню — с уже применёнными
+        # изменениями типа «Педсостав»), используем его, иначе читаем из файла.
         config_loaded = True
-        try:
-            self.template = BadgeTemplate.from_template_file(self._template_path)
-        except TemplateConfigError:
-            self.template = BadgeTemplate(self._template_path,
-                                          BadgeTemplate.default_config(self._template_path))
-            config_loaded = False
+        if template is not None:
+            self.template = template
+        else:
+            try:
+                self.template = BadgeTemplate.from_template_file(self._template_path)
+            except TemplateConfigError:
+                self.template = BadgeTemplate(self._template_path,
+                                              BadgeTemplate.default_config(self._template_path))
+                config_loaded = False
 
         self._mode = "photo"  # id текстового поля или 'photo'
         self._drag: Optional[str] = None  # 'photo_move' / 'photo_resize' / 'field_move'
@@ -752,7 +757,14 @@ class TemplateWizard(QtWidgets.QDialog):
             }, self.template.config_dir))
         self._rebuild_fields_list()
         self._rebuild_mode_combo()
+        if staff:
+            # авто-выбор поля «Должность»: сразу можно двигать его на макете
+            for i, f in enumerate(self.template.text_fields):
+                if f.id == "position":
+                    self.fields_list.setCurrentRow(i)  # вызовет _on_field_selected
+                    break
         self._sync_field_controls()
+        self._update_hint()
         self._update_preview()
         if self.tabs.currentIndex() == 1:
             self._update_example_preview(force_crop=False)
@@ -880,6 +892,11 @@ class TemplateWizard(QtWidgets.QDialog):
         from tools.derive_config import generate_config, save_config
         try:
             config = generate_config(self._template_path, Path(ready))
+            # сохраняем тип бейджа и поле «Должность», если они уже были
+            config["name_format"] = self.template.name_format
+            if self.template.get_text_field("position") is not None:
+                config.setdefault("text_fields", []).append(
+                    self.template.get_text_field("position").to_dict())
         except ValueError as e:
             QtWidgets.QMessageBox.critical(self, "Не удалось настроить", str(e))
             return

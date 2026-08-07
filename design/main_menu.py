@@ -203,6 +203,12 @@ class MainMenu(QtWidgets.QMainWindow):
         from tools.derive_config import generate_config, save_config
         try:
             config = generate_config(self._template_path, Path(ready))
+            # сохраняем тип бейджа и поле «Должность», если они уже были
+            if self._template is not None:
+                config["name_format"] = self._template.name_format
+                if self._template.get_text_field("position") is not None:
+                    config.setdefault("text_fields", []).append(
+                        self._template.get_text_field("position").to_dict())
             out = save_config(config, self._template_path)
         except ValueError as e:
             QtWidgets.QMessageBox.critical(self, "Не удалось настроить", str(e))
@@ -222,7 +228,10 @@ class MainMenu(QtWidgets.QMainWindow):
             return
         from design.template_wizard import TemplateWizard
         try:
-            wizard = TemplateWizard(self._template_path, photos=self._photos, parent=self)
+            # передаём текущий шаблон (с изменениями типа «Педсостав» в памяти),
+            # чтобы мастер не потерял добавленное поле «Должность»
+            wizard = TemplateWizard(self._template_path, photos=self._photos,
+                                    template=self._template, parent=self)
         except Exception as e:  # noqa: BLE001 — показываем ошибку, а не «молчим»
             import traceback
             traceback.print_exc()

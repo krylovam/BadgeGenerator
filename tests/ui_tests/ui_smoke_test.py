@@ -61,6 +61,29 @@ def test_main_menu(app) -> None:
     menu.close()
 
 
+def test_wizard_receives_in_memory_template(app) -> None:
+    """Мастер должен получать шаблон из главного меню (с полем «Должность»),
+    а не терять его при загрузке из файла."""
+    from design.template_wizard import TemplateWizard
+
+    menu = MainMenu()
+    menu._photos = [os.path.join(PHOTOS_DIR, f) for f in os.listdir(PHOTOS_DIR)
+                    if f.lower().endswith((".jpeg", ".jpg", ".png"))]
+    menu._template_path = os.path.abspath(TEMPLATE)
+    menu._load_template_config()
+    # включаем «Педсостав» в главном меню — поле добавляется в память
+    menu.ui.radio_staff.setChecked(True)
+    assert menu.template.get_text_field("position") is not None
+
+    # мастер должен увидеть это поле, не загружая конфиг заново из файла
+    wizard = TemplateWizard(menu._template_path, photos=menu.photos,
+                            template=menu.template)
+    assert wizard.template.name_format == "staff"
+    assert wizard.template.get_text_field("position") is not None
+    wizard.close()
+    menu.close()
+
+
 def test_constructor_and_saver(app) -> None:
     template = BadgeTemplate.from_template_file(TEMPLATE)
     photos = [os.path.join(PHOTOS_DIR, "judy_estrin.jpeg"),
