@@ -83,8 +83,16 @@ class Badge:
         from badge_generator.delete_background import (
             remove_background,
             remove_background_grabcut,
+            remove_background_unet,
         )
         photo_cfg = self._template.photo
+        if photo_cfg.remove_bg_mode == "unet":
+            try:
+                self._photo = remove_background_unet(self._photo)
+                return
+            except FileNotFoundError:
+                # модель не найдена — тихо откатываемся на GrabCut
+                print("ВНИМАНИЕ: u2netp.onnx не найден, использую GrabCut")
         if photo_cfg.remove_bg_mode == "brightness":
             self._photo = remove_background(self._photo,
                                             threshold=photo_cfg.remove_bg_threshold)
@@ -175,13 +183,8 @@ class Badge:
             fill = field.color[:3]
         draw.text((x, y), text, font=font, fill=fill)
 
-    def render(self, preview_checkerboard: bool = False) -> None:
-        """Перерисовывает бейдж целиком (текст + фото) поверх макета.
-
-        :param preview_checkerboard: если True и фото с прозрачностью —
-            под фото рисуется шахматная подложка (для предпросмотра, чтобы
-            было видно удалённый фон). Финальный бейдж рендерится без неё.
-        """
+    def render(self) -> None:
+        """Перерисовывает бейдж целиком (текст + фото) поверх макета."""
         img = self._template.image.copy()
         # если фото с прозрачностью (удалён фон) — работаем в RGBA, чтобы
         # прозрачность сохранилась до самого конца
@@ -205,8 +208,6 @@ class Badge:
                 cropped = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
             paste_x = x + (pw - new_w) // 2
             paste_y = y + (ph - new_h) // 2
-            if preview_checkerboard and cropped.mode == "RGBA":
-                self._draw_checkerboard(draw, (x, y, pw, ph), cell=16)
             if cropped.mode == "RGBA":
                 # прозрачность сохраняем: вклеиваем с альфой
                 if img.mode == "RGBA":
@@ -218,18 +219,6 @@ class Badge:
             else:
                 img.paste(cropped, (paste_x, paste_y))
         self._badge_image = img
-
-    @staticmethod
-    def _draw_checkerboard(draw: ImageDraw.ImageDraw, box: Tuple[int, int, int, int],
-                           cell: int = 16) -> None:
-        """Шахматная подложка под областью фото (показывает прозрачность)."""
-        x0, y0, w, h = box
-        for yy in range(y0, y0 + h, cell):
-            for xx in range(x0, x0 + w, cell):
-                parity = ((xx - x0) // cell + (yy - y0) // cell) % 2
-                color = (200, 200, 200, 255) if parity else (235, 235, 235, 255)
-                draw.rectangle((xx, yy, min(xx + cell, x0 + w), min(yy + cell, y0 + h)),
-                               fill=color)
 
     # ------------------------------------------------------------------ #
     # Доступ к данным

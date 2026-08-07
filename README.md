@@ -81,8 +81,9 @@ python design/application_controller.py
   под пропорции области — вам нужно задать только область и `face_scale`
   (насколько крупно лицо). `face_offset_y` — смещение центра лица
   по вертикали, `remove_background` — вырезать человека с фото,
-  `remove_bg_mode` — способ: `grabcut` (вырезание силуэта, работает на
-  любом фоне; по умолчанию) или `brightness` (по яркости светлого фона,
+  `remove_bg_mode` — способ: `unet` (нейросеть U²-Net, как в rembg;
+  по умолчанию, модель `badge_generator/models/u2netp.onnx`), `grabcut`
+  (силуэт по рамке лица) или `brightness` (по яркости светлого фона,
   `remove_bg_threshold` — порог яркости). Алгоритмы — в
   `badge_generator/delete_background.py`.
 
@@ -128,7 +129,8 @@ UI-тесты работают в offscreen-режиме и пропускают
 badge_generator/          # ядро (без Qt)
     template.py           # конфиг шаблона (JSON)
     BadgeGenerator.py     # генерация бейджа
-    delete_background.py  # удаление светлого фона с фото
+    delete_background.py  # вырезание человека (U²-Net / GrabCut / по яркости)
+    models/u2netp.onnx    # модель U²-Net для вырезания фона
 detector/
     FaceDetection.py      # детекция лица: YuNet (ONNX) + каскад Хаара
     utils/                # модели: face_detection_yunet_2023mar.onnx, cascade.xml

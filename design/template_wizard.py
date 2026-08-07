@@ -208,11 +208,6 @@ class TemplateWizard(QtWidgets.QDialog):
         self.example_info.setStyleSheet("color: #555;")
         tab_example_layout.addWidget(self.example_info)
 
-        self.check_show_checker = QtWidgets.QCheckBox(
-            "Показывать прозрачность шахматной подложкой (только для проверки)")
-        self.check_show_checker.setChecked(False)
-        tab_example_layout.addWidget(self.check_show_checker)
-
         self.tabs.addTab(tab_place, "Расстановка элементов")
         self.tabs.addTab(tab_example, "Пример бейджа")
 
@@ -329,7 +324,8 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_offset.setSingleStep(0.05)
         self.check_remove_bg = QtWidgets.QCheckBox("вырезать человека с фото (убрать фон)")
         self.combo_bg_mode = QtWidgets.QComboBox()
-        self.combo_bg_mode.addItem("Вырезание человека (GrabCut) — любой фон", "grabcut")
+        self.combo_bg_mode.addItem("Нейросеть U²-Net — любой фон (рекомендуется)", "unet")
+        self.combo_bg_mode.addItem("Вырезание человека (GrabCut)", "grabcut")
         self.combo_bg_mode.addItem("Светлый фон (по яркости)", "brightness")
         self.spin_bg_threshold = QtWidgets.QSpinBox()
         self.spin_bg_threshold.setRange(1, 254)
@@ -396,7 +392,6 @@ class TemplateWizard(QtWidgets.QDialog):
         self.combo_bg_mode.currentIndexChanged.connect(self._on_photo_spin_changed)
         self.spin_bg_threshold.valueChanged.connect(self._on_photo_spin_changed)
         self.radio_listener.toggled.connect(self._on_name_format_changed)
-        self.check_show_checker.toggled.connect(self._on_checker_toggled)
         for w in (self.edit_label, self.spin_font_size, self.spin_max_width,
                   self.combo_align, self.spin_anchor_x, self.spin_anchor_y):
             if isinstance(w, QtWidgets.QLineEdit):
@@ -670,11 +665,6 @@ class TemplateWizard(QtWidgets.QDialog):
         if self.tabs.currentIndex() == 1:
             self._update_example_preview(force_crop=True)
 
-    def _on_checker_toggled(self) -> None:
-        """Переключение шахматной подложки — обновляем пример."""
-        if self.tabs.currentIndex() == 1:
-            self._update_example_preview(force_crop=False)
-
     # ------------------------------------------------------------------ #
     # Работа с превью
     # ------------------------------------------------------------------ #
@@ -926,8 +916,7 @@ class TemplateWizard(QtWidgets.QDialog):
         if force_crop:
             badge.apply_face_crop()
             self._photo_params_dirty = False
-        # шахматная подложка — только по галочке (по умолчанию выключена)
-        badge.render(preview_checkerboard=self.check_show_checker.isChecked())
+        badge.render()
         pixmap = pil_to_pixmap(badge.get_preview_image((460, 320)))
         self.example_label.setPixmap(pixmap)
         self.example_info.setText(

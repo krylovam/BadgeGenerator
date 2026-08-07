@@ -241,9 +241,9 @@ def test_listener_badge_ignores_extra_tokens(tmp_path) -> None:
     assert badge.get_position() == ""
 
 
-def test_remove_background_visible_in_preview(tmp_path) -> None:
-    """При включённом удалении фона предпросмотр показывает шахматную
-    подложку (прозрачность видна), а финальный рендер — без неё."""
+def test_unet_background_removal_in_badge(tmp_path) -> None:
+    """U²-Net вырезает человека: бейдж RGBA, есть прозрачные пиксели,
+    а фото не выходит за границы области."""
     import json
     tpl = tmp_path / "t.png"
     Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
@@ -253,30 +253,22 @@ def test_remove_background_visible_in_preview(tmp_path) -> None:
         "badge_size_mm": [100, 100],
         "dpi": 300,
         "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 50}],
-        "photo": {"place_on_badge": [100, 100, 400, 400], "crop_size": [400, 400],
-                  "face_scale": 0.4, "remove_background": True,
-                  "remove_bg_threshold": 225},
+        "photo": {"place_on_badge": [100, 100, 400, 500], "crop_size": [400, 500],
+                  "face_scale": 0.45, "remove_background": True,
+                  "remove_bg_mode": "unet"},
     }), encoding="utf-8")
     template = BadgeTemplate.from_json(cfg)
     badge = Badge(0, TEST_CASES[1].file_path, template)
-    assert badge.get_photo().mode == "RGBA"
-
-    badge.render(preview_checkerboard=True)
-    preview = badge.get_photo()
-    # в области фото должны быть серые клетки (шахматка) — они непрозрачны
+    img = badge.get_photo()
+    assert img.mode == "RGBA"
+    # есть прозрачные пиксели (фон удалён)
+    assert img.getchannel("A").getextrema()[0] < 255
+    # фото не вылезает за границы области: пиксели сразу за областью — белые
     x, y, w, h = template.photo.place_on_badge
-    cells = {(200, 200, 200), (235, 235, 235)}
-    found = any(preview.getpixel((px, py))[:3] in cells
-                for px in range(x, x + w, 8)
-                for py in range(y, y + h, 8))
-    assert found, "шахматная подложка не найдена в предпросмотре"
-
-    # финальный рендер — без подложки (прозрачность сохранена)
-    badge.render(preview_checkerboard=False)
-    final = badge.get_photo()
-    assert final.mode == "RGBA"
-    # есть хоть немного прозрачности (края кадра после удаления фона)
-    assert final.getchannel("A").getextrema()[0] < 255
+    for px, py in [(x - 1, y + h // 2), (x + w + 1, y + h // 2),
+                   (x + w // 2, y - 1), (x + w // 2, y + h + 1)]:
+        if 0 <= px < img.width and 0 <= py < img.height:
+            assert img.getpixel((px, py))[:3] == (255, 255, 255), f"фото вылезло за границу в ({px},{py})"
 
 
 def test_remove_bg_threshold_config_roundtrip(tmp_path) -> None:

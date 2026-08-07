@@ -1,11 +1,18 @@
-"""Тесты удаления светлого фона с фото и вырезания человека (GrabCut)."""
+"""Тесты удаления светлого фона с фото и вырезания человека (U²-Net, GrabCut)."""
+import os
+
 import numpy as np
+import pytest
 from PIL import Image, ImageDraw
 
 from badge_generator.delete_background import (
     remove_background,
     remove_background_grabcut,
+    remove_background_unet,
 )
+
+dir_path = os.path.dirname(__file__)
+MODEL = os.path.join(dir_path, "..", "..", "badge_generator", "models", "u2netp.onnx")
 
 
 def _photo_with_light_background() -> Image.Image:
@@ -73,3 +80,52 @@ def test_grabcut_keeps_foreground_colors() -> None:
     px = rgba.getpixel((150, 300))  # тело
     assert px[3] > 200
     assert px[:3] == (50, 50, 50)
+
+
+@pytest.mark.skipif(not os.path.isfile(MODEL), reason="u2netp.onnx не найден")
+def test_unet_cuts_person_on_real_photo() -> None:
+    """U²-Net вырезает человека на реальном фото: лицо непрозрачно,
+    углы прозрачны."""
+    import sys
+    sys.path.insert(0, os.path.join(dir_path, "..", ".."))
+    from detector.FaceDetection import FaceDetector
+
+    photo = os.path.join(dir_path, "..", "assets", "photos", "judy_estrin.jpeg")
+    img = Image.open(photo)
+    rgba = remove_background_unet(img, model_path=MODEL)
+    assert rgba.mode == "RGBA"
+    a = np.asarray(rgba.getchannel("A"))
+
+    det = FaceDetector(photo)
+    det.detect()
+    box = det.get_boxes()
+    assert box is not None
+    fx, fy, fw, fh = box
+    # лицо непрозрачно
+    assert a[fy + fh // 2, fx + fw // 2] > 200
+    # углы прозрачны (фон)
+    assert a[5, 5] < 50 and a[5, -6] < 50
+
+
+@pytest.mark.skipif(not os.path.isfile(MODEL), reason="u2netp.onnx не найден")
+def test_unet_keeps_foreground_colors() -> None:
+    """U²-Net сохраняет цвета человека."""
+    import sys
+    sys.path.insert(0, os.path.join(dir_path, "..", ".."))
+    from detector.FaceDetection import FaceDetector
+
+    photo = os.path.join(dir_path, "..", "assets", "photos", "judy_estrin.jpeg")
+    rgba = remove_background_unet(Image.open(photo), model_path=MODEL)
+    det = FaceDetector(photo)
+    det.detect()
+    box = det.get_boxes()
+    fx, fy, fw, fh = box
+    px = rgba.getpixel((fx + fw // 2, fy + fh // 2))
+    assert px[3] > 200
+    # цвет не белый (не фон) и не чёрный (не маска)
+    assert not (px[0] > 240 and px[1] > 240 and px[2] > 240)
+
+
+def test_unet_missing_model_raises() -> None:
+    with pytest.raises(FileNotFoundError):
+        remove_background_unet(Image.new("RGB", (10, 10)), model_path="/nonexistent/u2netp.onnx")

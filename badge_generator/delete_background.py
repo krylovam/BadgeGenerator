@@ -1,14 +1,17 @@
 """Удаление фона / вырезание человека с фото.
 
-Два способа:
-- :func:`remove_background_grabcut` — вырезает человека по силуэту (GrabCut),
-  инициализируясь рамкой лица. Работает на ЛЮБОМ фоне (нейтральный, пёстрый,
-  тёмный) — лучший выбор для портретов.
-- :func:`remove_background` — убирает светлый фон (заливка от границ кадра).
-  Подходит только для однотонного светлого фона.
+Способы:
+- :func:`remove_background_unet` — нейросеть U²-Net (ONNX, модель
+  ``u2netp.onnx``) вырезает человека по силуэту. Работает на ЛЮБОМ фоне,
+  не режет руки/одежду. Рекомендуемый способ (как в rembg).
+- :func:`remove_background_grabcut` — GrabCut по рамке лица (запасной,
+  может обрезать руки).
+- :func:`remove_background` — убирает светлый фон по яркости (только для
+  однотонного светлого фона).
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional, Tuple
 
 import cv2
@@ -18,6 +21,12 @@ from PIL import Image
 GRABCUT_ITERATIONS = 5
 GRABCUT_MAX_WORK_SIZE = 900  # маска считается на уменьшенной копии (быстрее)
 GRABCUT_FEATHER = 4          # размытие края маски, px
+
+MODELS_DIR = Path(__file__).resolve().parent / "models"
+U2NET_MODEL = MODELS_DIR / "u2netp.onnx"
+U2NET_SIZE = 320            # входной размер сети
+U2NET_FEATHER = 3           # размытие края маски, px
+U2NET_THRESHOLD = 0.5       # порог бинаризации маски
 
 
 def _border_background_mask(near_white: np.ndarray) -> np.ndarray:
@@ -51,6 +60,46 @@ def _person_rect_from_face(face_box: Optional[Tuple[int, int, int, int]],
     if x1 - x0 < 10 or y1 - y0 < 10:
         return (1, 1, img_w - 2, img_h - 2)
     return (x0, y0, x1 - x0, y1 - y0)
+
+
+def _to_rgba(rgb: Image.Image, alpha: np.ndarray) -> Image.Image:
+    r, g, b = rgb.split()
+    return Image.merge("RGBA", (r, g, b, Image.fromarray(alpha, mode="L")))
+
+
+def remove_background_unet(image: Image.Image, model_path: Path = U2NET_MODEL,
+                           threshold: float = U2NET_THRESHOLD,
+                           feather: int = U2NET_FEATHER) -> Image.Image:
+    """Вырезает человека с фото нейросетью U²-Net (как rembg).
+
+    :param image: исходное фото (RGB/RGBA).
+    :param model_path: путь к ONNX-модели (u2netp.onnx по умолчанию).
+    :param threshold: порог отнесения пикселя к человеку (0..1).
+    :param feather: размытие границы маски в пикселях.
+    :raises FileNotFoundError: если файл модели не найден.
+    """
+    model_path = Path(model_path)
+    if not model_path.is_file():
+        raise FileNotFoundError(
+            f"Модель U²-Net не найдена: {model_path}\n"
+            "Положите u2netp.onnx в папку badge_generator/models/")
+    rgb = image.convert("RGB")
+    arr = np.asarray(rgb, dtype=np.uint8)
+    h, w = arr.shape[:2]
+
+    net = cv2.dnn.readNetFromONNX(str(model_path))
+    blob = cv2.dnn.blobFromImage(arr, 1 / 255.0, (U2NET_SIZE, U2NET_SIZE),
+                                 (0.485, 0.456, 0.406), swapRB=True, crop=False)
+    blob = blob / np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(1, 3, 1, 1)
+    net.setInput(blob)
+    out = net.forward()[0, 0]  # (320, 320)
+
+    mask = cv2.resize(out, (w, h), interpolation=cv2.INTER_LINEAR)
+    alpha = np.where(mask >= threshold, 255, 0).astype(np.uint8)
+    if feather > 0:
+        alpha = cv2.GaussianBlur(alpha, (0, 0), sigmaX=feather)
+        alpha = np.clip(alpha, 0, 255).astype(np.uint8)
+    return _to_rgba(rgb, alpha)
 
 
 def remove_background_grabcut(image: Image.Image,
@@ -97,8 +146,7 @@ def remove_background_grabcut(image: Image.Image,
         alpha = cv2.GaussianBlur(alpha, (0, 0), sigmaX=feather)
         alpha = np.clip(alpha, 0, 255).astype(np.uint8)
 
-    r, g, b = rgb.split()
-    return Image.merge("RGBA", (r, g, b, Image.fromarray(alpha, mode="L")))
+    return _to_rgba(rgb, alpha)
 
 
 def remove_background(image: Image.Image, threshold: int = 240, feather: int = 3) -> Image.Image:
@@ -118,5 +166,4 @@ def remove_background(image: Image.Image, threshold: int = 240, feather: int = 3
         alpha = cv2.GaussianBlur(alpha, (0, 0), sigmaX=feather)
         alpha = np.clip(alpha, 0, 255).astype(np.uint8)
 
-    r, g, b = rgb.split()
-    return Image.merge("RGBA", (r, g, b, Image.fromarray(alpha, mode="L")))
+    return _to_rgba(rgb, alpha)

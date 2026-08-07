@@ -203,13 +203,13 @@ def test_loading_config_preserves_photo_settings(tmp_path) -> None:
     assert template2.photo.face_scale == 0.42
 
 
-def test_old_config_position_normalized_on_load(tmp_path) -> None:
-    """Старый конфиг с position align=left нормализуется: center + lowercase."""
+def test_old_config_position_kept_on_load(tmp_path) -> None:
+    """Старый конфиг с position align=left не меняется при загрузке
+    (принудительная нормализация ломала положение текста)."""
     import json
     import shutil
     shutil.copy(TEMPLATE_PATH, tmp_path / "1отряд.png")
     cfg = tmp_path / "1отряд.json"
-    # старый формат: align=left, uppercase, без lowercase
     cfg.write_text(json.dumps({
         "template_file": "1отряд.png",
         "badge_size_mm": [100, 70],
@@ -220,16 +220,15 @@ def test_old_config_position_normalized_on_load(tmp_path) -> None:
             {"id": "surname", "anchor": [100, 250], "font_size": 80},
             {"id": "position", "label": "Должность", "anchor": [100, 400],
              "align": "left", "font": "assets/Montserrat.ttf", "font_size": 60,
-             "max_width": 700, "auto_shrink": True, "uppercase": True},
+             "max_width": 700, "auto_shrink": True, "uppercase": False},
         ],
         "photo": {"place_on_badge": [100, 600, 400, 200], "crop_size": [400, 200]},
     }), encoding="utf-8")
     template = BadgeTemplate.from_template_file(tmp_path / "1отряд.png")
     pos = template.get_text_field("position")
     assert pos is not None
-    assert pos.align == "center"
-    assert pos.lowercase is True
-    assert pos.uppercase is False
+    assert pos.align == "left"  # не тронут
+    assert pos.anchor == (100, 400)
 
 
 def test_remove_bg_mode_roundtrip(tmp_path) -> None:
@@ -251,7 +250,7 @@ def test_remove_bg_mode_roundtrip(tmp_path) -> None:
     saved = template.save_json(tmp_path / "out.json")
     loaded = BadgeTemplate.from_json(saved)
     assert loaded.photo.remove_bg_mode == "brightness"
-    # по умолчанию — grabcut
+    # по умолчанию — unet
     cfg2 = tmp_path / "t2.json"
     cfg2.write_text(json.dumps({
         "template_file": "t.png", "badge_size_mm": [50, 50], "dpi": 300,
@@ -260,4 +259,4 @@ def test_remove_bg_mode_roundtrip(tmp_path) -> None:
                   "remove_background": True},
     }), encoding="utf-8")
     t2 = BadgeTemplate.from_json(cfg2)
-    assert t2.photo.remove_bg_mode == "grabcut"
+    assert t2.photo.remove_bg_mode == "unet"
