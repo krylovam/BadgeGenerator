@@ -205,9 +205,9 @@ def test_loading_config_preserves_photo_settings(tmp_path) -> None:
     assert template2.photo.face_scale == 0.42
 
 
-def test_old_config_position_kept_on_load(tmp_path) -> None:
-    """Старый конфиг с position align=left не меняется при загрузке
-    (принудительная нормализация ломала положение текста)."""
+def test_old_config_position_normalized_on_load(tmp_path) -> None:
+    """Старый конфиг с position align=left при загрузке нормализуется:
+    align=center, lowercase=True, якорь сдвинут вправо (текст не уезжает)."""
     import json
     import shutil
     shutil.copy(TEMPLATE_PATH, tmp_path / "1отряд.png")
@@ -229,8 +229,12 @@ def test_old_config_position_kept_on_load(tmp_path) -> None:
     template = BadgeTemplate.from_template_file(tmp_path / "1отряд.png")
     pos = template.get_text_field("position")
     assert pos is not None
-    assert pos.align == "left"  # не тронут
-    assert pos.anchor == (100, 400)
+    assert pos.align == "center"
+    assert pos.lowercase is True
+    assert pos.uppercase is False
+    # якорь сдвинут вправо на ~font_size*2, y не изменился
+    assert pos.anchor[0] == 100 + 60 * 2
+    assert pos.anchor[1] == 400
 
 
 def test_remove_background_flag_roundtrip(tmp_path) -> None:

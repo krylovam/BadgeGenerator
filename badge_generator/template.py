@@ -209,6 +209,17 @@ class BadgeTemplate:
         ids = [f.id for f in self.text_fields]
         if len(set(ids)) != len(ids):
             raise TemplateConfigError(f"id текстовых полей должны быть уникальны: {ids}")
+        # Поле «Должность» (position): всегда по центру и в нижнем регистре.
+        # Если в старом конфиге align=left — переключаем на center и сдвигаем
+        # якорь вправо на ~половину ширины текста, чтобы надпись не уехала.
+        position = self.get_text_field("position")
+        if position is not None:
+            if position.align == "left":
+                position.anchor = (position.anchor[0] + int(position.font_size * 2),
+                                   position.anchor[1])
+            position.align = "center"
+            position.uppercase = False
+            position.lowercase = True
 
         name_format = str(data.get("name_format", DEFAULT_NAME_FORMAT)).lower()
         if name_format not in NAME_FORMATS:
