@@ -102,7 +102,15 @@ class MainMenu(QtWidgets.QMainWindow):
         if self._template_path is None:
             return
         from design.template_wizard import TemplateWizard
-        wizard = TemplateWizard(self._template_path, photos=self._photos, parent=self)
+        try:
+            wizard = TemplateWizard(self._template_path, photos=self._photos, parent=self)
+        except Exception as e:  # noqa: BLE001 — показываем ошибку, а не «молчим»
+            import traceback
+            traceback.print_exc()
+            QtWidgets.QMessageBox.critical(
+                self, "Не удалось открыть настройку шаблона",
+                f"Произошла ошибка:\n{e}\n\nПодробности в консоли.")
+            return
         if wizard.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             self._load_template_config()
             self.check_errors()

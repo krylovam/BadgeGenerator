@@ -569,7 +569,7 @@ class TemplateWizard(QtWidgets.QDialog):
     # ------------------------------------------------------------------ #
     # Работа с превью
     # ------------------------------------------------------------------ #
-    def _preview_scale(self) -> float:
+    def _compute_preview_scale(self) -> float:
         tw, th = self.template.size
         return min(PREVIEW_MAX_W / tw, PREVIEW_MAX_H / th, 1.0)
 
@@ -591,7 +591,7 @@ class TemplateWizard(QtWidgets.QDialog):
                       x + w, y + h), fill=PHOTO_COLOR + (255,))
         preview = Image.alpha_composite(img, overlay)
 
-        scale = self._preview_scale()
+        scale = self._compute_preview_scale()
         self._preview_scale = scale
         if scale < 1.0:
             preview = preview.resize((max(1, round(preview.width * scale)),
