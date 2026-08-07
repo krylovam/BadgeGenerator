@@ -1,16 +1,18 @@
 """Удаление фона / вырезание человека с фото.
 
 Способы:
-- :func:`remove_background_unet` — нейросеть U²-Net (ONNX, модель
-  ``u2netp.onnx``) вырезает человека по силуэту. Работает на ЛЮБОМ фоне,
-  не режет руки/одежду. Рекомендуемый способ (как в rembg).
-- :func:`remove_background_grabcut` — GrabCut по рамке лица (запасной,
-  может обрезать руки).
+- :func:`remove_background_rembg` — библиотека rembg (U²-Net через
+  onnxruntime) с локальной моделью ``u2netp.onnx``. Рекомендуемый способ —
+  именно он использовался в оригинальном приложении.
+- :func:`remove_background_unet` — та же модель U²-Net, но через OpenCV DNN
+  (запасной вариант, если rembg/onnxruntime не установлены).
+- :func:`remove_background_grabcut` — GrabCut по рамке лица (может обрезать руки).
 - :func:`remove_background` — убирает светлый фон по яркости (только для
   однотонного светлого фона).
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -27,6 +29,11 @@ U2NET_MODEL = MODELS_DIR / "u2netp.onnx"
 U2NET_SIZE = 320            # входной размер сети
 U2NET_FEATHER = 3           # размытие края маски, px
 U2NET_THRESHOLD = 0.5       # порог бинаризации маски
+
+# rembg-сессия создаётся один раз и переиспользуется (иначе каждое фото
+# заново грузило бы модель — медленно)
+_rembg_session = None
+_rembg_model_used = None
 
 
 def _border_background_mask(near_white: np.ndarray) -> np.ndarray:
@@ -65,6 +72,42 @@ def _person_rect_from_face(face_box: Optional[Tuple[int, int, int, int]],
 def _to_rgba(rgb: Image.Image, alpha: np.ndarray) -> Image.Image:
     r, g, b = rgb.split()
     return Image.merge("RGBA", (r, g, b, Image.fromarray(alpha, mode="L")))
+
+
+def remove_background_rembg(image: Image.Image, model_path: Path = U2NET_MODEL) -> Image.Image:
+    """Вырезает человека с фото библиотекой rembg (как в оригинальном приложении).
+
+    Модель загружается из локального файла (не качается из интернета).
+    Сессия создаётся один раз и переиспользуется.
+
+    :param image: исходное фото (RGB/RGBA).
+    :param model_path: путь к ONNX-модели (u2netp.onnx по умолчанию).
+    :raises ImportError: если rembg/onnxruntime не установлены.
+    :raises FileNotFoundError: если файл модели не найден.
+    """
+    global _rembg_session, _rembg_model_used
+    try:
+        from rembg import new_session, remove
+    except ImportError as e:
+        raise ImportError(
+            "Библиотека rembg не установлена. Установите: pip install 'rembg[cpu]'"
+        ) from e
+
+    model_path = Path(model_path)
+    if not model_path.is_file():
+        raise FileNotFoundError(
+            f"Модель U²-Net не найдена: {model_path}\n"
+            "Положите u2netp.onnx в папку badge_generator/models/")
+
+    # rembg скачивает модель через pooch в папку U2NET_HOME.
+    # Указываем нашу локальную папку с моделью — pooch найдёт файл
+    # и не будет качать из интернета.
+    os.environ["U2NET_HOME"] = str(MODELS_DIR)
+
+    if _rembg_session is None or _rembg_model_used != str(model_path):
+        _rembg_session = new_session("u2netp")
+        _rembg_model_used = str(model_path)
+    return remove(image, session=_rembg_session)
 
 
 def remove_background_unet(image: Image.Image, model_path: Path = U2NET_MODEL,

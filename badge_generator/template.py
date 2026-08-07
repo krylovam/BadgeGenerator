@@ -34,10 +34,10 @@ PHOTO_DEFAULTS = {
     "face_offset_y": DEFAULT_FACE_OFFSET_Y,
     "remove_background": False,
     "remove_bg_threshold": 200,
-    "remove_bg_mode": "unet",  # 'unet' — нейросеть (рекомендуется), 'grabcut', 'brightness'
+    "remove_bg_mode": "rembg",  # 'rembg' — библиотека rembg (как в оригинале)
 }
 
-BG_MODES = ("unet", "grabcut", "brightness")
+BG_MODES = ("rembg", "unet", "grabcut", "brightness")
 
 KNOWN_FIELD_IDS = ("name", "surname")
 
@@ -172,7 +172,8 @@ class PhotoConfig:
         mode = str(data.get("remove_bg_mode", PHOTO_DEFAULTS["remove_bg_mode"])).lower()
         if mode not in BG_MODES:
             raise TemplateConfigError(
-                f"photo.remove_bg_mode должно быть unet/grabcut/brightness, получено: {mode!r}")
+                f"photo.remove_bg_mode должно быть rembg/unet/grabcut/brightness, "
+                f"получено: {mode!r}")
         self.remove_bg_mode: str = mode
 
     def to_dict(self) -> Dict[str, Any]:

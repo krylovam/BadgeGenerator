@@ -81,10 +81,12 @@ python design/application_controller.py
   под пропорции области — вам нужно задать только область и `face_scale`
   (насколько крупно лицо). `face_offset_y` — смещение центра лица
   по вертикали, `remove_background` — вырезать человека с фото,
-  `remove_bg_mode` — способ: `unet` (нейросеть U²-Net, как в rembg;
-  по умолчанию, модель `badge_generator/models/u2netp.onnx`), `grabcut`
-  (силуэт по рамке лица) или `brightness` (по яркости светлого фона,
-  `remove_bg_threshold` — порог яркости). Алгоритмы — в
+  `remove_bg_mode` — способ: `rembg` (библиотека rembg, как в оригинальном
+  приложении; по умолчанию), `unet` (та же модель U²-Net через OpenCV DNN),
+  `grabcut` (силуэт по рамке лица) или `brightness` (по яркости светлого
+  фона, `remove_bg_threshold` — порог яркости). Модель
+  `badge_generator/models/u2netp.onnx` используется локально, без
+  скачивания из интернета. Алгоритмы — в
   `badge_generator/delete_background.py`.
 
 ## Детекция лица

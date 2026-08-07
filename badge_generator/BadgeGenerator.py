@@ -83,15 +83,21 @@ class Badge:
         from badge_generator.delete_background import (
             remove_background,
             remove_background_grabcut,
+            remove_background_rembg,
             remove_background_unet,
         )
         photo_cfg = self._template.photo
-        if photo_cfg.remove_bg_mode == "unet":
+        if photo_cfg.remove_bg_mode == "rembg":
+            try:
+                self._photo = remove_background_rembg(self._photo)
+                return
+            except (ImportError, FileNotFoundError) as e:
+                print(f"ВНИМАНИЕ: rembg недоступен ({e}), пробую встроенную U²-Net")
+        if photo_cfg.remove_bg_mode in ("rembg", "unet"):
             try:
                 self._photo = remove_background_unet(self._photo)
                 return
             except FileNotFoundError:
-                # модель не найдена — тихо откатываемся на GrabCut
                 print("ВНИМАНИЕ: u2netp.onnx не найден, использую GrabCut")
         if photo_cfg.remove_bg_mode == "brightness":
             self._photo = remove_background(self._photo,

@@ -250,7 +250,7 @@ def test_remove_bg_mode_roundtrip(tmp_path) -> None:
     saved = template.save_json(tmp_path / "out.json")
     loaded = BadgeTemplate.from_json(saved)
     assert loaded.photo.remove_bg_mode == "brightness"
-    # по умолчанию — unet
+    # по умолчанию — rembg
     cfg2 = tmp_path / "t2.json"
     cfg2.write_text(json.dumps({
         "template_file": "t.png", "badge_size_mm": [50, 50], "dpi": 300,
@@ -259,4 +259,4 @@ def test_remove_bg_mode_roundtrip(tmp_path) -> None:
                   "remove_background": True},
     }), encoding="utf-8")
     t2 = BadgeTemplate.from_json(cfg2)
-    assert t2.photo.remove_bg_mode == "unet"
+    assert t2.photo.remove_bg_mode == "rembg"
