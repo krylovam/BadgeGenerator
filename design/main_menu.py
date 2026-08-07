@@ -178,6 +178,7 @@ class MainMenu(QtWidgets.QMainWindow):
         try:
             from badge_generator.BadgeGenerator import Badge
             badge = Badge(0, self._photos[0], self._template)
+            badge.render(preview_checkerboard=self._template.photo.remove_background)
             preview = badge.get_preview_image((460, 320))
         except Exception as e:  # noqa: BLE001
             self.ui.error_label.setText(f"Не удалось построить пример: {e}")

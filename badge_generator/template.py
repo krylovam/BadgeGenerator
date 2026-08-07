@@ -33,6 +33,7 @@ PHOTO_DEFAULTS = {
     "face_scale": DEFAULT_FACE_SCALE,
     "face_offset_y": DEFAULT_FACE_OFFSET_Y,
     "remove_background": False,
+    "remove_bg_threshold": 225,
 }
 
 KNOWN_FIELD_IDS = ("name", "surname")
@@ -157,6 +158,12 @@ class PhotoConfig:
             raise TemplateConfigError("photo.face_scale должно быть больше нуля")
         self.remove_background: bool = _as_bool(
             data.get("remove_background", PHOTO_DEFAULTS["remove_background"]), "photo.remove_background")
+        try:
+            self.remove_bg_threshold: int = int(
+                data.get("remove_bg_threshold", PHOTO_DEFAULTS["remove_bg_threshold"]))
+        except (TypeError, ValueError):
+            raise TemplateConfigError("photo.remove_bg_threshold должно быть числом")
+        self.remove_bg_threshold = min(254, max(1, self.remove_bg_threshold))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -165,6 +172,7 @@ class PhotoConfig:
             "face_scale": self.face_scale,
             "face_offset_y": self.face_offset_y,
             "remove_background": self.remove_background,
+            "remove_bg_threshold": self.remove_bg_threshold,
         }
 
 

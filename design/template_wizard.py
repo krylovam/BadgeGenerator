@@ -317,20 +317,32 @@ class TemplateWizard(QtWidgets.QDialog):
         crop_auto_label.setStyleSheet("color: #667; font-size: 11px;")
         crop_auto_label.setWordWrap(True)
         self.spin_face_scale = QtWidgets.QDoubleSpinBox()
-        self.spin_face_scale.setRange(0.05, 5.0)
+        self.spin_face_scale.setRange(0.1, 2.0)
         self.spin_face_scale.setSingleStep(0.05)
         self.spin_face_offset = QtWidgets.QDoubleSpinBox()
         self.spin_face_offset.setRange(0.5, 3.0)
         self.spin_face_offset.setSingleStep(0.05)
         self.check_remove_bg = QtWidgets.QCheckBox("удалять светлый фон с фото")
+        self.spin_bg_threshold = QtWidgets.QSpinBox()
+        self.spin_bg_threshold.setRange(1, 254)
+        self.spin_bg_threshold.setValue(225)
+        self.spin_bg_threshold.setToolTip(
+            "Пиксели ярче этого значения считаются фоном. Если фон не удаляется "
+            "полностью — уменьшите значение (например 210).")
+        face_scale_hint = QtWidgets.QLabel(
+            "0.3 — по пояс · 0.4–0.5 — портрет (рекомендуется) · 0.7–1.0 — крупно, только лицо")
+        face_scale_hint.setStyleSheet("color: #667; font-size: 11px;")
+        face_scale_hint.setWordWrap(True)
         photo_form.addRow("Позиция X:", self.spin_photo_x)
         photo_form.addRow("Позиция Y:", self.spin_photo_y)
         photo_form.addRow("Ширина:", self.spin_photo_w)
         photo_form.addRow("Высота:", self.spin_photo_h)
         photo_form.addRow("Кадр из фото:", crop_auto_label)
         photo_form.addRow("Масштаб по лицу:", self.spin_face_scale)
+        photo_form.addRow("", face_scale_hint)
         photo_form.addRow("Смещение лица по Y:", self.spin_face_offset)
         photo_form.addRow("", self.check_remove_bg)
+        photo_form.addRow("Порог фона (яркость):", self.spin_bg_threshold)
         form.addWidget(photo_box)
 
         form.addStretch(1)
@@ -372,6 +384,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_scale.valueChanged.connect(self._on_photo_spin_changed)
         self.spin_face_offset.valueChanged.connect(self._on_photo_spin_changed)
         self.check_remove_bg.toggled.connect(self._on_photo_spin_changed)
+        self.spin_bg_threshold.valueChanged.connect(self._on_photo_spin_changed)
         self.radio_listener.toggled.connect(self._on_name_format_changed)
         for w in (self.edit_label, self.spin_font_size, self.spin_max_width,
                   self.combo_align, self.spin_anchor_x, self.spin_anchor_y):
@@ -435,6 +448,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_scale.setValue(t.photo.face_scale)
         self.spin_face_offset.setValue(t.photo.face_offset_y)
         self.check_remove_bg.setChecked(t.photo.remove_background)
+        self.spin_bg_threshold.setValue(t.photo.remove_bg_threshold)
         # тип бейджа
         self.radio_listener.blockSignals(True)
         self.radio_staff.blockSignals(True)
@@ -617,6 +631,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.template.photo.face_scale = self.spin_face_scale.value()
         self.template.photo.face_offset_y = self.spin_face_offset.value()
         self.template.photo.remove_background = self.check_remove_bg.isChecked()
+        self.template.photo.remove_bg_threshold = self.spin_bg_threshold.value()
         self._photo_params_dirty = True
         self._update_preview()
         if self.tabs.currentIndex() == 1:
@@ -872,7 +887,9 @@ class TemplateWizard(QtWidgets.QDialog):
         if force_crop:
             badge.apply_face_crop()
             self._photo_params_dirty = False
-        badge.render()
+        # если включено удаление фона — показываем шахматную подложку,
+        # чтобы было видно прозрачность (в финальном бейдже её нет)
+        badge.render(preview_checkerboard=self.template.photo.remove_background)
         pixmap = pil_to_pixmap(badge.get_preview_image((460, 320)))
         self.example_label.setPixmap(pixmap)
         self.example_info.setText(

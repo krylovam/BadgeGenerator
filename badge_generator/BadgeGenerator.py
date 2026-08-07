@@ -74,7 +74,8 @@ class Badge:
         if template.photo.remove_background:
             # Импорт ленивый: opencv нужен только если функция включена в конфиге
             from badge_generator.delete_background import remove_background
-            self._photo = remove_background(self._photo)
+            self._photo = remove_background(self._photo,
+                                            threshold=template.photo.remove_bg_threshold)
         self.detect_face()
         self.render()
 
@@ -156,9 +157,18 @@ class Badge:
             fill = field.color[:3]
         draw.text((x, y), text, font=font, fill=fill)
 
-    def render(self) -> None:
-        """Перерисовывает бейдж целиком (текст + фото) поверх макета."""
+    def render(self, preview_checkerboard: bool = False) -> None:
+        """Перерисовывает бейдж целиком (текст + фото) поверх макета.
+
+        :param preview_checkerboard: если True и фото с прозрачностью —
+            под фото рисуется шахматная подложка (для предпросмотра, чтобы
+            было видно удалённый фон). Финальный бейдж рендерится без неё.
+        """
         img = self._template.image.copy()
+        # если фото с прозрачностью (удалён фон) — работаем в RGBA, чтобы
+        # прозрачность сохранилась до самого конца
+        if self._photo is not None and self._photo.mode == "RGBA":
+            img = img.convert("RGBA")
         draw = ImageDraw.Draw(img)
         for field in self._template.text_fields:
             text = self._text_for(field.id)
@@ -177,12 +187,31 @@ class Badge:
                 cropped = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
             paste_x = x + (pw - new_w) // 2
             paste_y = y + (ph - new_h) // 2
+            if preview_checkerboard and cropped.mode == "RGBA":
+                self._draw_checkerboard(draw, (x, y, pw, ph), cell=16)
             if cropped.mode == "RGBA":
-                patch = Image.new("RGBA", cropped.size, (255, 255, 255, 255))
-                patch = Image.alpha_composite(patch, cropped)
-                cropped = patch.convert(img.mode)
-            img.paste(cropped, (paste_x, paste_y))
+                # прозрачность сохраняем: вклеиваем с альфой
+                if img.mode == "RGBA":
+                    img.paste(cropped, (paste_x, paste_y), cropped)
+                else:
+                    patch = Image.new("RGBA", cropped.size, (255, 255, 255, 255))
+                    patch = Image.alpha_composite(patch, cropped)
+                    img.paste(patch.convert(img.mode), (paste_x, paste_y))
+            else:
+                img.paste(cropped, (paste_x, paste_y))
         self._badge_image = img
+
+    @staticmethod
+    def _draw_checkerboard(draw: ImageDraw.ImageDraw, box: Tuple[int, int, int, int],
+                           cell: int = 16) -> None:
+        """Шахматная подложка под областью фото (показывает прозрачность)."""
+        x0, y0, w, h = box
+        for yy in range(y0, y0 + h, cell):
+            for xx in range(x0, x0 + w, cell):
+                parity = ((xx - x0) // cell + (yy - y0) // cell) % 2
+                color = (200, 200, 200, 255) if parity else (235, 235, 235, 255)
+                draw.rectangle((xx, yy, min(xx + cell, x0 + w), min(yy + cell, y0 + h)),
+                               fill=color)
 
     # ------------------------------------------------------------------ #
     # Доступ к данным

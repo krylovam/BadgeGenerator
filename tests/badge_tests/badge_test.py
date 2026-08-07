@@ -241,6 +241,66 @@ def test_listener_badge_ignores_extra_tokens(tmp_path) -> None:
     assert badge.get_position() == ""
 
 
+def test_remove_background_visible_in_preview(tmp_path) -> None:
+    """При включённом удалении фона предпросмотр показывает шахматную
+    подложку (прозрачность видна), а финальный рендер — без неё."""
+    import json
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 100],
+        "dpi": 300,
+        "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 50}],
+        "photo": {"place_on_badge": [100, 100, 400, 400], "crop_size": [400, 400],
+                  "face_scale": 0.4, "remove_background": True,
+                  "remove_bg_threshold": 225},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, TEST_CASES[1].file_path, template)
+    assert badge.get_photo().mode == "RGBA"
+
+    badge.render(preview_checkerboard=True)
+    preview = badge.get_photo()
+    # в области фото должны быть серые клетки (шахматка) — они непрозрачны
+    x, y, w, h = template.photo.place_on_badge
+    cells = {(200, 200, 200), (235, 235, 235)}
+    found = any(preview.getpixel((px, py))[:3] in cells
+                for px in range(x, x + w, 8)
+                for py in range(y, y + h, 8))
+    assert found, "шахматная подложка не найдена в предпросмотре"
+
+    # финальный рендер — без подложки (прозрачность сохранена)
+    badge.render(preview_checkerboard=False)
+    final = badge.get_photo()
+    assert final.mode == "RGBA"
+    # есть хоть немного прозрачности (края кадра после удаления фона)
+    assert final.getchannel("A").getextrema()[0] < 255
+
+
+def test_remove_bg_threshold_config_roundtrip(tmp_path) -> None:
+    """Порог удаления фона сохраняется в конфиг."""
+    import json
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (500, 500), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [50, 50],
+        "dpi": 300,
+        "text_fields": [{"id": "name", "anchor": [10, 10], "font_size": 30}],
+        "photo": {"place_on_badge": [10, 100, 200, 200], "crop_size": [200, 200],
+                  "remove_background": True, "remove_bg_threshold": 210},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    assert template.photo.remove_background is True
+    assert template.photo.remove_bg_threshold == 210
+    saved = template.save_json(tmp_path / "out.json")
+    loaded = BadgeTemplate.from_json(saved)
+    assert loaded.photo.remove_bg_threshold == 210
+
+
 def test_crop_size_fits_photo_area_proportions() -> None:
     """Кадр должен подгоняться под пропорции области фото на макете,
     чтобы фото заполняло область без белых полей."""
