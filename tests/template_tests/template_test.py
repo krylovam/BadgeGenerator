@@ -88,14 +88,38 @@ def test_font_resolution() -> None:
 
 
 @pytest.mark.parametrize("filename,expected", [
-    ("кристин_петерсон.jpeg", ("Кристин", "Петерсон")),
-    ("ivanov petr.jpg", ("Ivanov", "Petr")),
-    ("смирнова-анна.png", ("Смирнова", "Анна")),
-    ("o_brien_kevin.jpeg", ("O", "Brien Kevin")),
-    ("безразделителя.jpg", ("Безразделителя", "")),
-    ("пустой.jpg", ("Пустой", "")),
-    ("фролова_арина_2_10.jpg", ("Фролова", "Арина")),
-    ("Фролова Арина Сергеевна 2 10.jpg", ("Фролова", "Арина Сергеевна")),
+    # слушатель: 2 поля (имя, фамилия), остальное игнорируется
+    ("кристин_петерсон.jpeg", ("Кристин", "Петерсон", "")),
+    ("ivanov petr.jpg", ("Ivanov", "Petr", "")),
+    ("смирнова-анна.png", ("Смирнова", "Анна", "")),
+    ("безразделителя.jpg", ("Безразделителя", "", "")),
+    ("пустой.jpg", ("Пустой", "", "")),
+    ("фролова_арина_2_10.jpg", ("Фролова", "Арина", "")),
+    ("Фролова Арина Сергеевна 2 10.jpg", ("Фролова", "Арина", "")),
+    ("Петров Пётр Петрович 1 11.jpg", ("Петров", "Пётр", "")),
 ])
-def test_parse_name_from_filename(filename: str, expected: tuple) -> None:
-    assert parse_name_from_filename(filename) == expected
+def test_parse_name_from_filename_listener(filename: str, expected: tuple) -> None:
+    assert parse_name_from_filename(filename, mode="listener") == expected
+
+
+@pytest.mark.parametrize("filename,expected", [
+    # педсостав: 3 поля (имя, фамилия, должность)
+    ("Иванов Иван Вожатый.png", ("Иванов", "Иван", "Вожатый")),
+    ("Смирнова Ольга Методист 3 12.png", ("Смирнова", "Ольга", "Методист")),
+    ("Петров Пётр.jpg", ("Петров", "Пётр", "")),
+])
+def test_parse_name_from_filename_staff(filename: str, expected: tuple) -> None:
+    assert parse_name_from_filename(filename, mode="staff") == expected
+
+
+def test_name_format_in_template_roundtrip(tmp_path) -> None:
+    """name_format сохраняется в JSON и читается обратно."""
+    import shutil
+    shutil.copy(TEMPLATE_PATH, tmp_path / "1отряд.png")
+    shutil.copy(f"{dir_path}/../assets/1отряд.json", tmp_path / "1отряд.json")
+    template = BadgeTemplate.from_template_file(tmp_path / "1отряд.png")
+    assert template.name_format == "listener"
+    template.name_format = "staff"
+    saved = template.save_json(tmp_path / "custom.json")
+    loaded = BadgeTemplate.from_json(saved)
+    assert loaded.name_format == "staff"

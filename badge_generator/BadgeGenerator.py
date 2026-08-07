@@ -22,24 +22,28 @@ MIN_FONT_SIZE = 20
 FONT_SHRINK_STEP = 0.9
 
 
-def parse_name_from_filename(url: str) -> Tuple[str, str]:
-    """Разбирает имя и фамилию из имени файла.
+def parse_name_from_filename(url: str, mode: str = "listener") -> Tuple[str, str, str]:
+    """Разбирает имя, фамилию (и должность) из имени файла.
 
-    Формат: ``<фамилия>[_<имя>...]``, разделители — пробелы, '_' или '-'.
-    Хвостовые токены, состоящие только из цифр (класс, номер и т.п.),
-    отбрасываются. Пример: ``кристин_петерсон.jpeg`` ->
-    (surname='Кристин', name='Петерсон'); ``Фролова Арина 2 10.jpg`` ->
-    (surname='Фролова', name='Арина').
+    Формат: ``<фамилия> <имя> [<должность>] ...``, разделители — пробелы, '_' или '-'.
+
+    - mode='listener' (слушатель): берутся первые 2 токена — фамилия и имя,
+      всё остальное (отчество, класс, номер и т.п.) игнорируется.
+      Пример: ``Петров Пётр Петрович 1 11.jpg`` -> ('Пётр', 'Петров', '').
+    - mode='staff' (педсостав): берутся первые 3 токена — фамилия, имя,
+      должность. Пример: ``Иванов Иван Вожатый.png`` -> ('Иван', 'Иванов',
+      'Вожатый').
+
+    Хвостовые токены из одних цифр отбрасываются.
     """
     base = Path(str(url).replace("\\", "/")).stem
     parts = [p for p in re.split(r"[_\-\s]+", base.strip()) if p]
     while parts and parts[-1].isdigit():
         parts.pop()
-    if not parts:
-        return "", ""
-    surname = parts[0].title()
-    name = " ".join(parts[1:]).title()
-    return surname, name
+    surname = parts[0].title() if parts else ""
+    name = parts[1].title() if len(parts) > 1 else ""
+    position = parts[2].title() if mode == "staff" and len(parts) > 2 else ""
+    return surname, name, position
 
 
 def _sanitize_filename(value: str) -> str:
@@ -59,11 +63,13 @@ class Badge:
         self._photo_y = 0
         self._badge_image: Optional[Image.Image] = None
         self._extra: Dict[str, str] = {}
+        self._position: str = ""
         self._rendered_font_sizes: Dict[str, int] = {}
         self._face_box: Optional[Tuple[int, int, int, int]] = None
         self._eye_center: Optional[Tuple[int, int]] = None
 
-        self._surname, self._name = parse_name_from_filename(url)
+        self._surname, self._name, self._position = parse_name_from_filename(
+            url, mode=template.name_format)
         self.load_photo()
         if template.photo.remove_background:
             # Импорт ленивый: opencv нужен только если функция включена в конфиге
@@ -122,6 +128,8 @@ class Badge:
             return self._name
         if field_id == "surname":
             return self._surname
+        if field_id == "position":
+            return self._position
         return self._extra.get(field_id, "")
 
     def _draw_text(self, draw: ImageDraw.ImageDraw, field: TextFieldConfig, text: str) -> None:
@@ -197,7 +205,17 @@ class Badge:
         self.render()
 
     def set_extra(self, field_id: str, value: str) -> None:
+        if field_id == "position":
+            self.set_position(value)
+            return
         self._extra[field_id] = value.strip()
+        self.render()
+
+    def get_position(self) -> str:
+        return self._position
+
+    def set_position(self, position: str) -> None:
+        self._position = position.strip()
         self.render()
 
     def get_photo_coords(self) -> Tuple[int, int]:
@@ -234,13 +252,14 @@ class Badge:
         self._photo_y = int(min(max(0.0, cy * factor - ch / 2), max(0, self._photo.height - ch)))
         self.render()
 
-    def get_photo_state(self) -> Tuple[int, int, int, int, str, str]:
-        """Состояние правок (для undo): координаты, размер фото, имя, фамилия."""
+    def get_photo_state(self) -> Tuple[int, int, int, int, str, str, str]:
+        """Состояние правок (для undo): координаты, размер фото, имя, фамилия, должность."""
         return (self._photo_x, self._photo_y, self._photo.width, self._photo.height,
-                self._name, self._surname)
+                self._name, self._surname, self._position)
 
-    def set_photo_state(self, state: Tuple[int, int, int, int, str, str]) -> None:
-        self._photo_x, self._photo_y, pw, ph, self._name, self._surname = state
+    def set_photo_state(self, state: Tuple[int, int, int, int, str, str, str]) -> None:
+        (self._photo_x, self._photo_y, pw, ph,
+         self._name, self._surname, self._position) = state
         self._photo = self._photo.resize((pw, ph), Image.Resampling.LANCZOS)
         self.render()
 

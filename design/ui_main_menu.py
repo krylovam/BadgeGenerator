@@ -15,9 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QLabel,
-    QMainWindow, QMenuBar, QPushButton, QSizePolicy,
-    QSpacerItem, QStatusBar, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QFrame, QGroupBox, QHBoxLayout,
+    QLabel, QMainWindow, QMenuBar, QPushButton,
+    QRadioButton, QSizePolicy, QSpacerItem, QStatusBar,
+    QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -87,6 +88,25 @@ class Ui_MainWindow(object):
         self.pushButton_quick_config.setEnabled(False)
 
         self.left_column.addWidget(self.pushButton_quick_config)
+
+        self.group_badge_type = QGroupBox(self.centralwidget)
+        self.group_badge_type.setObjectName(u"group_badge_type")
+        self.type_layout = QVBoxLayout(self.group_badge_type)
+        self.type_layout.setSpacing(4)
+        self.type_layout.setObjectName(u"type_layout")
+        self.radio_listener = QRadioButton(self.group_badge_type)
+        self.radio_listener.setObjectName(u"radio_listener")
+        self.radio_listener.setChecked(True)
+
+        self.type_layout.addWidget(self.radio_listener)
+
+        self.radio_staff = QRadioButton(self.group_badge_type)
+        self.radio_staff.setObjectName(u"radio_staff")
+
+        self.type_layout.addWidget(self.radio_staff)
+
+
+        self.left_column.addWidget(self.group_badge_type)
 
         self.spacer_2 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
@@ -171,6 +191,9 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.pushButton_quick_config.setToolTip(QCoreApplication.translate("MainWindow", u"\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0433\u043e\u0442\u043e\u0432\u044b\u0439 \u0431\u0435\u0439\u0434\u0436 (\u043f\u0440\u0438\u043c\u0435\u0440 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430) \u2014 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0441\u0430\u043c\u043e \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0438\u0442 \u043a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u044b \u0442\u0435\u043a\u0441\u0442\u0430 \u0438 \u0444\u043e\u0442\u043e \u0438 \u0441\u043e\u0437\u0434\u0430\u0441\u0442 \u043a\u043e\u043d\u0444\u0438\u0433", None))
 #endif // QT_CONFIG(tooltip)
+        self.group_badge_type.setTitle(QCoreApplication.translate("MainWindow", u"\u0422\u0438\u043f \u0431\u0435\u0439\u0434\u0436\u0430", None))
+        self.radio_listener.setText(QCoreApplication.translate("MainWindow", u"\u0421\u043b\u0443\u0448\u0430\u0442\u0435\u043b\u044c \u2014 2 \u043f\u043e\u043b\u044f (\u0438\u043c\u044f, \u0444\u0430\u043c\u0438\u043b\u0438\u044f)", None))
+        self.radio_staff.setText(QCoreApplication.translate("MainWindow", u"\u041f\u0435\u0434\u0441\u043e\u0441\u0442\u0430\u0432 \u2014 3 \u043f\u043e\u043b\u044f (+ \u0434\u043e\u043b\u0436\u043d\u043e\u0441\u0442\u044c)", None))
         self.error_label.setText("")
         self.label_preview_title.setText(QCoreApplication.translate("MainWindow", u"\u041f\u0440\u0435\u0432\u044c\u044e \u043c\u0430\u043a\u0435\u0442\u0430:", None))
         self.label_preview.setText(QCoreApplication.translate("MainWindow", u"\u041c\u0430\u043a\u0435\u0442 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d", None))

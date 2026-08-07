@@ -132,6 +132,35 @@
          </widget>
         </item>
         <item>
+         <widget class="QGroupBox" name="group_badge_type">
+          <property name="title">
+           <string>Тип бейджа</string>
+          </property>
+          <layout class="QVBoxLayout" name="type_layout">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <item>
+            <widget class="QRadioButton" name="radio_listener">
+             <property name="text">
+              <string>Слушатель — 2 поля (имя, фамилия)</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="radio_staff">
+             <property name="text">
+              <string>Педсостав — 3 поля (+ должность)</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
          <spacer name="spacer_2">
           <property name="orientation">
            <enum>Qt::Vertical</enum>

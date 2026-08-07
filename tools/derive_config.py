@@ -137,7 +137,7 @@ def generate_config(template_path: Path, ready_path: Path) -> dict:
 
     # Имя/фамилия из имени файла готового бейджа
     from badge_generator.BadgeGenerator import parse_name_from_filename
-    surname, name = parse_name_from_filename(str(ready_path))
+    surname, name, _ = parse_name_from_filename(str(ready_path))
 
     font_path = PROJECT_ROOT / DEFAULT_FONT
     fields = []

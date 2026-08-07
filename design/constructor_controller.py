@@ -137,7 +137,7 @@ class Constructor(QtWidgets.QMainWindow):
         self.ui.edit_surname.setText(badge.get_surname())
         self.ui.edit_name.setText(badge.get_name())
         for field_id, edit in self._extra_edits.items():
-            edit.setText("")
+            edit.setText(badge.get_position() if field_id == "position" else "")
         self.ui.btn_back.setEnabled(index > 0)
         self.ui.btn_next.setEnabled(index < len(self.badges) - 1)
         self.update_preview()
@@ -211,6 +211,10 @@ class Constructor(QtWidgets.QMainWindow):
 
     def _apply_extra(self, field_id: str, value: str) -> None:
         self.badge.set_extra(field_id, value)
+        if self.ui.check_apply_all.isChecked():
+            for b in self.badges:
+                if b is not self.badge:
+                    b.set_extra(field_id, value)
         self.update_preview()
 
     def next_badge(self) -> None:

@@ -51,6 +51,13 @@ def test_main_menu(app) -> None:
     assert menu._showing_example
     menu.toggle_example_badge()
     assert not menu._showing_example
+    # переключатель типа бейджа: слушатель -> педсостав
+    assert menu.template.name_format == "listener"
+    menu.ui.radio_staff.setChecked(True)
+    assert menu.template.name_format == "staff"
+    assert menu.template.get_text_field("position") is not None
+    menu.ui.radio_listener.setChecked(True)
+    assert menu.template.name_format == "listener"
     menu.close()
 
 

@@ -153,7 +153,7 @@ def test_translate_and_scale(template: BadgeTemplate) -> None:
     badge.scale_photo(1.05)
     # после увеличения фото окно кадрирования не выходит за пределы фото
     cw, _ = template.photo.crop_size
-    _, _, photo_w, _, _, _ = badge.get_photo_state()
+    _, _, photo_w, _, _, _, _ = badge.get_photo_state()
     assert 0 <= badge.get_photo_coords()[0] <= photo_w - cw
 
 
@@ -165,6 +165,7 @@ def test_undo_state(template: BadgeTemplate) -> None:
     assert badge.get_photo_coords() == (state[0], state[1])
     assert badge.get_name() == state[4]
     assert badge.get_surname() == state[5]
+    assert badge.get_position() == state[6]
 
 
 def test_apply_face_crop_recalculates_after_param_change() -> None:
@@ -176,8 +177,68 @@ def test_apply_face_crop_recalculates_after_param_change() -> None:
     badge.apply_face_crop()
     assert badge.get_photo_coords() != coords_before
     cw, _ = template.photo.crop_size
-    _, _, photo_w, _, _, _ = badge.get_photo_state()
+    _, _, photo_w, _, _, _, _ = badge.get_photo_state()
     assert 0 <= badge.get_photo_coords()[0] <= photo_w - cw
+
+
+def test_staff_badge_parses_position(tmp_path) -> None:
+    """Педсостав: имя, фамилия и должность берутся из имени файла."""
+    import json
+    import shutil
+
+    # фото с именем «Иванов Иван Вожатый»
+    photo = tmp_path / "Иванов Иван Вожатый.png"
+    shutil.copy(TEST_CASES[1].file_path, photo)
+
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 100],
+        "dpi": 300,
+        "name_format": "staff",
+        "text_fields": [
+            {"id": "name", "anchor": [10, 10], "font_size": 80},
+            {"id": "surname", "anchor": [10, 120], "font_size": 80},
+            {"id": "position", "anchor": [10, 230], "font_size": 60},
+        ],
+        "photo": {"place_on_badge": [10, 400, 400, 400], "crop_size": [400, 400]},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, str(photo), template)
+    assert badge.get_surname() == "Иванов"
+    assert badge.get_name() == "Иван"
+    assert badge.get_position() == "Вожатый"
+
+
+def test_listener_badge_ignores_extra_tokens(tmp_path) -> None:
+    """Слушатель: берутся только 2 поля, отчество и цифры игнорируются."""
+    import json
+    import shutil
+
+    photo = tmp_path / "Петров Пётр Петрович 1 11.jpg"
+    shutil.copy(TEST_CASES[1].file_path, photo)
+
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 100],
+        "dpi": 300,
+        "name_format": "listener",
+        "text_fields": [
+            {"id": "name", "anchor": [10, 10], "font_size": 80},
+            {"id": "surname", "anchor": [10, 120], "font_size": 80},
+        ],
+        "photo": {"place_on_badge": [10, 400, 400, 400], "crop_size": [400, 400]},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, str(photo), template)
+    assert badge.get_surname() == "Петров"
+    assert badge.get_name() == "Пётр"
+    assert badge.get_position() == ""
 
 
 def test_crop_size_fits_photo_area_proportions() -> None:

@@ -7,7 +7,7 @@ from typing import List, Optional
 from PySide6 import QtWidgets
 from PySide6.QtCore import Signal
 
-from badge_generator.template import BadgeTemplate, TemplateConfigError
+from badge_generator.template import BadgeTemplate, TextFieldConfig, TemplateConfigError
 from design.pixmap_utils import load_pixmap, pil_to_pixmap
 from design.ui_main_menu import Ui_MainWindow
 
@@ -39,6 +39,7 @@ class MainMenu(QtWidgets.QMainWindow):
         self.ui.pushButton_quick_config.clicked.connect(self.quick_configure_from_ready)
         self.ui.pushButton_preview_example.clicked.connect(self.toggle_example_badge)
         self.ui.pushButton_next.clicked.connect(self.next_requested.emit)
+        self.ui.radio_listener.toggled.connect(self._on_badge_type_changed)
 
     # ------------------------------------------------------------------ #
     # Публичное состояние
@@ -87,9 +88,11 @@ class MainMenu(QtWidgets.QMainWindow):
         self._template = None
         try:
             self._template = BadgeTemplate.from_template_file(self._template_path)
+            self._sync_badge_type_controls()
             self.ui.label_template_info.setText(
                 f"Шаблон: {self._template_path.name} · {self._template.badge_size_mm[0]}×"
-                f"{self._template.badge_size_mm[1]} мм @ {self._template.dpi} dpi")
+                f"{self._template.badge_size_mm[1]} мм @ {self._template.dpi} dpi · "
+                f"{'Педсостав' if self._template.name_format == 'staff' else 'Слушатель'}")
         except TemplateConfigError:
             self._config_missing = True
             self.ui.label_template_info.setText(
@@ -109,6 +112,56 @@ class MainMenu(QtWidgets.QMainWindow):
         else:
             self.ui.label_preview.clear()
             self.ui.label_preview.setText("Макет не выбран")
+
+    # ------------------------------------------------------------------ #
+    # Тип бейджа: слушатель (2 поля) / педсостав (3 поля)
+    # ------------------------------------------------------------------ #
+    def _add_position_field(self) -> None:
+        """Добавляет поле «Должность» (position) в конфиг шаблона (в памяти)."""
+        assert self._template is not None
+        surname = self._template.get_text_field("surname")
+        anchor = (surname.anchor[0], surname.anchor[1] + int(surname.font_size * 1.5))
+        self._template.text_fields.append(TextFieldConfig({
+            "id": "position",
+            "label": "Должность",
+            "anchor": anchor,
+            "align": surname.align,
+            "font": "assets/Montserrat.ttf",
+            "font_size": max(40, int(surname.font_size * 0.65)),
+            "max_width": surname.max_width,
+            "auto_shrink": True,
+            "uppercase": False,
+        }, self._template.config_dir))
+
+    def _sync_badge_type_controls(self) -> None:
+        """Синхронизирует радио-кнопки с name_format загруженного конфига."""
+        if self._template is None:
+            return
+        staff = self._template.name_format == "staff"
+        self.ui.radio_listener.blockSignals(True)
+        self.ui.radio_staff.blockSignals(True)
+        self.ui.radio_listener.setChecked(not staff)
+        self.ui.radio_staff.setChecked(staff)
+        self.ui.radio_listener.blockSignals(False)
+        self.ui.radio_staff.blockSignals(False)
+        if staff and self._template.get_text_field("position") is None:
+            self._add_position_field()
+
+    def _on_badge_type_changed(self) -> None:
+        """Переключение типа: обновляет name_format в конфиге (в памяти)
+        и добавляет поле «Должность», если выбран педсостав."""
+        if self._template is None:
+            return
+        staff = self.ui.radio_staff.isChecked()
+        self._template.name_format = "staff" if staff else "listener"
+        if staff and self._template.get_text_field("position") is None:
+            self._add_position_field()
+        self.ui.label_template_info.setText(
+            f"Шаблон: {self._template_path.name} · {self._template.badge_size_mm[0]}×"
+            f"{self._template.badge_size_mm[1]} мм @ {self._template.dpi} dpi · "
+            f"{'Педсостав' if staff else 'Слушатель'}"
+            + (" (изменено — сохраните в мастере)" if staff else ""))
+        self.check_errors()
 
     # ------------------------------------------------------------------ #
     # Пример готового бейджа (превью)

@@ -24,6 +24,9 @@ DEFAULT_COLOR = (0, 0, 0)
 DEFAULT_MAX_WIDTH = 0  # 0 = без ограничения
 DEFAULT_FACE_SCALE = 0.5
 DEFAULT_FACE_OFFSET_Y = 1.1
+DEFAULT_NAME_FORMAT = "listener"  # 'listener' = 2 поля, 'staff' = 3 поля (должность)
+
+NAME_FORMATS = ("listener", "staff")
 
 PHOTO_DEFAULTS = {
     "crop_size": [1290, 1470],
@@ -198,6 +201,12 @@ class BadgeTemplate:
         if len(set(ids)) != len(ids):
             raise TemplateConfigError(f"id текстовых полей должны быть уникальны: {ids}")
 
+        name_format = str(data.get("name_format", DEFAULT_NAME_FORMAT)).lower()
+        if name_format not in NAME_FORMATS:
+            raise TemplateConfigError(
+                f"name_format должно быть listener/staff, получено: {name_format!r}")
+        self.name_format: str = name_format
+
         self.photo = PhotoConfig(data.get("photo"))
         self._image: Optional[Image.Image] = None
 
@@ -249,6 +258,7 @@ class BadgeTemplate:
             "template_file": template_path.name,
             "badge_size_mm": list(DEFAULT_BADGE_SIZE_MM),
             "dpi": DEFAULT_DPI,
+            "name_format": DEFAULT_NAME_FORMAT,
             "text_fields": [
                 {
                     "id": "name",
@@ -299,6 +309,7 @@ class BadgeTemplate:
             "template_file": self.template_file.name,
             "badge_size_mm": list(self.badge_size_mm),
             "dpi": self.dpi,
+            "name_format": self.name_format,
             "text_fields": [f.to_dict() for f in self.text_fields],
             "photo": self.photo.to_dict(),
         }
