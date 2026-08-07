@@ -29,14 +29,20 @@ def _solid_photo(tmp_path) -> str:
 
 
 def test_photo_fit_preserves_aspect(tmp_path) -> None:
-    # область 500x200 (2.5:1), кадр 400x400 (1:1) -> фото 200x200 по центру
+    """Фото заполняет область целиком (cover) без искажения пропорций:
+    края фото ровно по границам области, лишнее по краям обрезается."""
+    # область 500x200 (2.5:1), кадр 400x400 (1:1) -> фото 500x500,
+    # обрезано сверху/снизу до 500x200
     template = _make_template(tmp_path, [100, 100, 500, 200], [400, 400])
     badge = Badge(0, _solid_photo(tmp_path), template)
     img = badge.get_photo()
-    # слева от вписанного фото — белое поле (x=100..250), фото — по центру
-    assert img.getpixel((120, 200)) == (255, 255, 255)
-    # центр области — красное фото
+    # вся область заполнена фото (и у левого края, и в центре)
+    assert img.getpixel((120, 200)) == (200, 30, 30)
     assert img.getpixel((350, 200)) == (200, 30, 30)
+    # за пределами области — белый макет (фото не выходит за границы)
+    assert img.getpixel((90, 200)) == (255, 255, 255)
+    assert img.getpixel((350, 90)) == (255, 255, 255)
+    assert img.getpixel((350, 310)) == (255, 255, 255)
 
 
 def test_photo_fit_exact_when_aspects_match(tmp_path) -> None:
@@ -46,3 +52,30 @@ def test_photo_fit_exact_when_aspects_match(tmp_path) -> None:
     img = badge.get_photo()
     # левый верхний угол области — красное фото, а не белый фон
     assert img.getpixel((110, 110)) == (200, 30, 30)
+
+
+def test_photo_right_bottom_edges_exactly_match_area(tmp_path) -> None:
+    """Правый и нижний край фото ровно совпадают с границами области
+    (не выходят за них) при любых пропорциях кадра и области."""
+    # кадр 1290x1470 (портрет), область 400x500 — пропорции разные
+    template = _make_template(tmp_path, [100, 100, 400, 500], [1290, 1470])
+    badge = Badge(0, _solid_photo(tmp_path), template)
+    img = badge.get_photo()
+    # пиксели сразу за правой и нижней границей области — белые (макет)
+    assert img.getpixel((501, 350)) == (255, 255, 255)
+    assert img.getpixel((350, 601)) == (255, 255, 255)
+    # пиксели внутри области у правой и нижней границы — фото
+    assert img.getpixel((499, 350)) == (200, 30, 30)
+    assert img.getpixel((350, 599)) == (200, 30, 30)
+
+
+def test_small_photo_no_black_padding(tmp_path) -> None:
+    """Если фото меньше кадра (crop_size) — не должно быть чёрных полей
+    справа/снизу (PIL заполнял выход за границы фото чёрным)."""
+    # фото 800x800, кадр 1290x1470 — кадр больше фото
+    template = _make_template(tmp_path, [100, 100, 400, 500], [1290, 1470])
+    badge = Badge(0, _solid_photo(tmp_path), template)
+    img = badge.get_photo()
+    # вся область фото — красная (нет чёрных вставок)
+    for px, py in [(120, 120), (499, 350), (350, 599), (499, 599)]:
+        assert img.getpixel((px, py)) == (200, 30, 30), f"чёрное поле в ({px},{py})"

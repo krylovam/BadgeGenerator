@@ -181,17 +181,39 @@ class Badge:
                 self._draw_text(draw, field, text)
         if self._photo is not None:
             cw, ch = self._template.photo.crop_size
-            cropped = self._photo.crop((self._photo_x, self._photo_y,
-                                        self._photo_x + cw, self._photo_y + ch))
+            # Кадр не должен выходить за границы фото: PIL при выходе за край
+            # заполняет область чёрным — это давало «чёрные поля» справа/снизу.
+            crop_right = min(self._photo.width, self._photo_x + cw)
+            crop_bottom = min(self._photo.height, self._photo_y + ch)
+            if crop_right <= self._photo_x or crop_bottom <= self._photo_y:
+                # фото меньше кадра — берём всё фото
+                cropped = self._photo
+            else:
+                cropped = self._photo.crop((self._photo_x, self._photo_y,
+                                            crop_right, crop_bottom))
             x, y, pw, ph = self._template.photo.place_on_badge
-            # вписываем кадр в область без искажения пропорций
-            scale = min(pw / cropped.width, ph / cropped.height)
+            # Заполняем область фото целиком (cover): масштабируем так, чтобы
+            # фото покрывало всю область, затем обрезаем ровно по её границам.
+            # Края фото ВСЕГДА совпадают с границами области — ни одна сторона
+            # не выходит за них и не оставляет полей.
+            scale = max(pw / cropped.width, ph / cropped.height)
             new_w = max(1, round(cropped.width * scale))
             new_h = max(1, round(cropped.height * scale))
-            if (new_w, new_h) != (pw, ph):
+            if (new_w, new_h) != (cropped.width, cropped.height):
                 cropped = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
             paste_x = x + (pw - new_w) // 2
             paste_y = y + (ph - new_h) // 2
+            # Обрезка по границам области фото (cover: часть фото за краями).
+            left_crop = max(0, x - paste_x)
+            top_crop = max(0, y - paste_y)
+            right_crop = max(0, (paste_x + new_w) - (x + pw))
+            bottom_crop = max(0, (paste_y + new_h) - (y + ph))
+            if left_crop or top_crop or right_crop or bottom_crop:
+                cropped = cropped.crop((left_crop, top_crop,
+                                        new_w - right_crop, new_h - bottom_crop))
+                new_w, new_h = cropped.size
+                paste_x += left_crop
+                paste_y += top_crop
             # Страховка: не даём фото рисоваться за пределами макета.
             # Если область в конфиге выходит за край — обрезаем кадр по краю.
             if paste_x < 0:
