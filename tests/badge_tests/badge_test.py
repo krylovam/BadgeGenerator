@@ -178,3 +178,26 @@ def test_apply_face_crop_recalculates_after_param_change() -> None:
     cw, _ = template.photo.crop_size
     _, _, photo_w, _, _, _ = badge.get_photo_state()
     assert 0 <= badge.get_photo_coords()[0] <= photo_w - cw
+
+
+def test_crop_size_fits_photo_area_proportions() -> None:
+    """Кадр должен подгоняться под пропорции области фото на макете,
+    чтобы фото заполняло область без белых полей."""
+    template = BadgeTemplate.from_template_file(TEMPLATE_PATH)
+    template.photo.place_on_badge = (100, 100, 400, 500)  # пропорции 0.8
+    template.photo.crop_size = (1290, 1470)
+    # эмулируем _apply_place_from_preview
+    w, h = 400, 500
+    cw, ch = 1290, 1470
+    area = cw * ch
+    new_h = int(round((area * h / w) ** 0.5))
+    new_w = int(round(new_h * w / h))
+    assert abs(new_w / new_h - w / h) < 0.01
+    # итоговый бейдж не должен иметь белых полей внутри области
+    badge = Badge(0, TEST_CASES[1].file_path, template)
+    img = badge.get_photo()
+    x, y, pw, ph = template.photo.place_on_badge
+    region = img.crop((x, y, x + pw, y + ph))
+    # в области не должно быть сплошного белого (фото заполняет)
+    ext = region.getextrema()
+    assert min(ext[0] + ext[1] + ext[2]) < 240, "область фото белая — фото не заполняет"

@@ -301,6 +301,10 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_offset.setRange(0.5, 3.0)
         self.spin_face_offset.setSingleStep(0.05)
         self.check_remove_bg = QtWidgets.QCheckBox("удалять светлый фон с фото")
+        self.btn_fill_photo = QtWidgets.QPushButton("Заполнить область (подогнать кадр)")
+        self.btn_fill_photo.setToolTip(
+            "Подогнать кадр из фото под пропорции области на макете, "
+            "чтобы фото заполняло область без белых полей")
         photo_form.addRow("Позиция X:", self.spin_photo_x)
         photo_form.addRow("Позиция Y:", self.spin_photo_y)
         photo_form.addRow("Ширина:", self.spin_photo_w)
@@ -309,6 +313,7 @@ class TemplateWizard(QtWidgets.QDialog):
         photo_form.addRow("Кадр из фото H:", self.spin_crop_h)
         photo_form.addRow("Масштаб по лицу:", self.spin_face_scale)
         photo_form.addRow("Смещение лица по Y:", self.spin_face_offset)
+        photo_form.addRow("", self.btn_fill_photo)
         photo_form.addRow("", self.check_remove_bg)
         form.addWidget(photo_box)
 
@@ -351,6 +356,7 @@ class TemplateWizard(QtWidgets.QDialog):
         self.spin_face_scale.valueChanged.connect(self._on_photo_spin_changed)
         self.spin_face_offset.valueChanged.connect(self._on_photo_spin_changed)
         self.check_remove_bg.toggled.connect(self._on_photo_spin_changed)
+        self.btn_fill_photo.clicked.connect(self._fill_photo_area)
         for w in (self.edit_label, self.spin_font_size, self.spin_max_width,
                   self.combo_align, self.spin_anchor_x, self.spin_anchor_y):
             if isinstance(w, QtWidgets.QLineEdit):
@@ -567,10 +573,21 @@ class TemplateWizard(QtWidgets.QDialog):
         self._update_preview()
 
     def _on_photo_spin_changed(self) -> None:
-        self.template.photo.place_on_badge = (
-            self.spin_photo_x.value(), self.spin_photo_y.value(),
-            self.spin_photo_w.value(), self.spin_photo_h.value())
-        self.template.photo.crop_size = (self.spin_crop_w.value(), self.spin_crop_h.value())
+        """Ручное изменение параметров фото в панели справа.
+
+        Если меняется область на макете (позиция/размер) — кадр автоматически
+        подгоняется под её пропорции (чтобы фото заполняло область). Если
+        меняется сам кадр (crop W/H) — он используется как есть.
+        """
+        old_place = self.template.photo.place_on_badge
+        new_place = (self.spin_photo_x.value(), self.spin_photo_y.value(),
+                     self.spin_photo_w.value(), self.spin_photo_h.value())
+        self.template.photo.place_on_badge = new_place
+        if new_place != old_place:
+            # область изменилась — подгоняем кадр под пропорции
+            self._apply_place_from_preview(new_place)
+        else:
+            self.template.photo.crop_size = (self.spin_crop_w.value(), self.spin_crop_h.value())
         self.template.photo.face_scale = self.spin_face_scale.value()
         self.template.photo.face_offset_y = self.spin_face_offset.value()
         self.template.photo.remove_background = self.check_remove_bg.isChecked()
@@ -634,9 +651,8 @@ class TemplateWizard(QtWidgets.QDialog):
             elif inside:
                 self._drag = "photo_move"  # элемент остаётся на месте — «хватаем»
             else:
-                self.template.photo.place_on_badge = (tx, ty, w, h)
+                self._apply_place_from_preview((tx, ty, w, h))
                 self._drag = "photo_move"
-            self._sync_photo_spins()
         else:
             field = self._current_field()
             if field is not None:
@@ -660,14 +676,12 @@ class TemplateWizard(QtWidgets.QDialog):
             x, y, w, h = self.template.photo.place_on_badge
             nx = min(max(0, x + dx), tw - 1)
             ny = min(max(0, y + dy), th - 1)
-            self.template.photo.place_on_badge = (nx, ny, w, h)
-            self._sync_photo_spins()
+            self._apply_place_from_preview((nx, ny, w, h))
         elif self._drag == "photo_resize":
             x, y, w, h = self.template.photo.place_on_badge
             nw = min(max(1, w + dx), tw - x)
             nh = min(max(1, h + dy), th - y)
-            self.template.photo.place_on_badge = (x, y, nw, nh)
-            self._sync_photo_spins()
+            self._apply_place_from_preview((x, y, nw, nh))
         elif self._drag == "field_move":
             field = self._current_field()
             if field is not None:
@@ -688,6 +702,55 @@ class TemplateWizard(QtWidgets.QDialog):
             spin.blockSignals(True)
             spin.setValue(value)
             spin.blockSignals(False)
+
+    def _fill_photo_area(self) -> None:
+        """Подгоняет кадр под пропорции области фото (заполнение без полей)."""
+        place = self.template.photo.place_on_badge
+        self._apply_place_from_preview(place)
+        self._update_preview()
+        if self.tabs.currentIndex() == 1:
+            self._update_example_preview(force_crop=True)
+
+    def _sync_crop_spins(self) -> None:
+        cw, ch = self.template.photo.crop_size
+        for spin, value in ((self.spin_crop_w, cw), (self.spin_crop_h, ch)):
+            spin.blockSignals(True)
+            spin.setValue(value)
+            spin.blockSignals(False)
+
+    def _sync_face_spins(self) -> None:
+        for spin, value in ((self.spin_face_scale, self.template.photo.face_scale),
+                            (self.spin_face_offset, self.template.photo.face_offset_y)):
+            spin.blockSignals(True)
+            spin.setValue(value)
+            spin.blockSignals(False)
+
+    def _apply_place_from_preview(self, place) -> None:
+        """Обновляет область фото и автоматически подгоняет кадр под её
+        пропорции, чтобы фото заполняло область без белых полей.
+
+        При изменении ширины кадра компенсируем face_scale обратно
+        пропорционально, чтобы лицо на итоговом бейдже сохранило размер.
+        """
+        self.template.photo.place_on_badge = place
+        x, y, w, h = place
+        if w > 0 and h > 0:
+            cw, ch = self.template.photo.crop_size
+            if cw <= 0 or ch <= 0:
+                cw, ch = w, h
+            # сохраняем площадь кадра примерно той же, но подгоняем пропорции
+            area = cw * ch
+            new_h = int(round((area * h / w) ** 0.5)) if w else ch
+            new_w = int(round(new_h * w / h)) if h else cw
+            # компенсация face_scale: лицо сохраняет размер при смене ширины кадра
+            if cw > 0:
+                self.template.photo.face_scale = (
+                    self.template.photo.face_scale * cw / max(1, new_w))
+            self.template.photo.crop_size = (max(1, new_w), max(1, new_h))
+        self._sync_photo_spins()
+        self._sync_crop_spins()
+        self._sync_face_spins()
+        self._photo_params_dirty = True
 
     # ------------------------------------------------------------------ #
     # Пример итогового бейджа
