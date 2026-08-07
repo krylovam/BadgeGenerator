@@ -340,3 +340,47 @@ def test_crop_size_fits_photo_area_proportions() -> None:
     # в области не должно быть сплошного белого (фото заполняет)
     ext = region.getextrema()
     assert min(ext[0] + ext[1] + ext[2]) < 240, "область фото белая — фото не заполняет"
+
+
+def test_position_centered_in_area(tmp_path) -> None:
+    """Должность центрируется по ОБЛАСТИ: якорь — левый край, max_width —
+    ширина, текст по центру области [x, x+max_width]."""
+    import json
+    import shutil
+
+    photo = tmp_path / "Иванов Иван Вожатый.png"
+    shutil.copy(TEST_CASES[1].file_path, photo)
+
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1200, 900), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 70],
+        "dpi": 300,
+        "name_format": "staff",
+        "text_fields": [
+            {"id": "name", "anchor": [100, 100], "font_size": 80, "align": "left"},
+            {"id": "surname", "anchor": [100, 250], "font_size": 80, "align": "left"},
+            {"id": "position", "label": "Должность", "anchor": [300, 400],
+             "align": "center", "font": "assets/Montserrat.ttf", "font_size": 60,
+             "max_width": 600, "auto_shrink": True, "uppercase": False,
+             "lowercase": True},
+        ],
+        "photo": {"place_on_badge": [100, 600, 400, 200], "crop_size": [400, 200]},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, str(photo), template)
+    assert badge.get_position() == "Вожатый"
+    img = badge.get_photo()
+    import numpy as np
+    arr = np.asarray(img.convert("RGB"), dtype=np.int16)
+    dark = (arr[:, :, 0] < 128) & (arr[:, :, 1] < 128) & (arr[:, :, 2] < 128)
+    zone = dark[380:470, :]
+    xs = np.where(zone.any(axis=0))[0]
+    assert len(xs) > 0, "текст должности не найден"
+    center = (xs.min() + xs.max()) // 2
+    area_center = 300 + 600 // 2
+    assert abs(center - area_center) <= 2, f"центр {center} != {area_center}"
+    # текст не выходит за область
+    assert xs.min() >= 300 and xs.max() <= 900
