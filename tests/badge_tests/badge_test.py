@@ -520,3 +520,35 @@ def test_zoom_actually_rerenders_badge(tmp_path) -> None:
     diff = np.abs(np.asarray(after.convert("RGB"), dtype=int) -
                   np.asarray(before.convert("RGB"), dtype=int))
     assert (diff.sum(axis=2) > 0).sum() > 1000, "бейдж не перерисован после зума"
+
+
+def test_zoom_works_without_detected_face(tmp_path) -> None:
+    """Если лицо не найдено, зум всё равно работает: фото масштабируется
+    от оригинала, бейдж перерисовывается (регрессия: apply_face_crop
+    возвращался без применения _photo_scale)."""
+    import json
+    # однотонное фото — детектор лица не найдёт лицо
+    photo = tmp_path / "photo.png"
+    Image.new("RGB", (800, 800), (200, 200, 200)).save(photo)
+
+    tpl = tmp_path / "t.png"
+    Image.new("RGB", (1000, 1000), (255, 255, 255)).save(tpl)
+    cfg = tmp_path / "t.json"
+    cfg.write_text(json.dumps({
+        "template_file": "t.png",
+        "badge_size_mm": [100, 70],
+        "dpi": 300,
+        "text_fields": [{"id": "name", "anchor": [100, 100], "font_size": 80}],
+        "photo": {"place_on_badge": [100, 100, 400, 500], "crop_size": [1290, 1470],
+                  "face_scale": 0.45},
+    }), encoding="utf-8")
+    template = BadgeTemplate.from_json(cfg)
+    badge = Badge(0, str(photo), template)
+    assert badge._face_box is None, "ожидалось, что лицо не найдено"
+    size_before = badge._photo.size
+    badge.scale_photo(1.2)
+    assert badge._photo.size != size_before, "фото не изменилось после зума"
+    assert badge._photo.width > size_before[0]
+    # рендер не падает, бейдж валиден
+    img = badge.get_photo()
+    assert img.size == template.size

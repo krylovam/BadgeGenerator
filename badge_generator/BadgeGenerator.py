@@ -123,7 +123,12 @@ class Badge:
         # базовый масштаб: чтобы лицо (шириной w) заняло face_scale от ширины
         # кадра; зум пользователя (_photo_scale) умножается сверху.
         if box is None:
-            # Лицо не найдено — показываем центр кадра
+            # Лицо не найдено — центрируем кадр, но зум ВСЁ РАВНО применяем
+            # (иначе кнопки +/− «не реагируют» на таких фото).
+            total_scale = self._photo_scale
+            new_size = (max(1, round(self._photo_original.width * total_scale)),
+                        max(1, round(self._photo_original.height * total_scale)))
+            self._photo = self._photo_original.resize(new_size, Image.Resampling.LANCZOS)
             self._photo_x = max(0, (self._photo.width - cw) // 2)
             self._photo_y = max(0, (self._photo.height - ch) // 2)
             return

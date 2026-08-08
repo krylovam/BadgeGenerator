@@ -160,22 +160,36 @@ class Constructor(QtWidgets.QMainWindow):
             self._history.pop(0)
 
     def _translate(self, dx: int, dy: int) -> None:
-        self._push_history()
-        self.badge.translate_photo(dx, dy)
-        if self.ui.check_apply_all.isChecked():
-            for b in self.badges:
-                if b is not self.badge:
-                    b.translate_photo(dx, dy)
-        self.update_preview()
+        try:
+            self._push_history()
+            self.badge.translate_photo(dx, dy)
+            if self.ui.check_apply_all.isChecked():
+                for b in self.badges:
+                    if b is not self.badge:
+                        b.translate_photo(dx, dy)
+            self.update_preview()
+        except Exception as e:  # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            QtWidgets.QMessageBox.critical(
+                self, "Ошибка перемещения",
+                f"Не удалось сдвинуть фото:\n{e}\n\nПодробности в консоли.")
 
     def _zoom(self, factor: float) -> None:
-        self._push_history()
-        self.badge.scale_photo(factor)
-        if self.ui.check_apply_all.isChecked():
-            for b in self.badges:
-                if b is not self.badge:
-                    b.scale_photo(factor)
-        self.update_preview()
+        try:
+            self._push_history()
+            self.badge.scale_photo(factor)
+            if self.ui.check_apply_all.isChecked():
+                for b in self.badges:
+                    if b is not self.badge:
+                        b.scale_photo(factor)
+            self.update_preview()
+        except Exception as e:  # noqa: BLE001 — показываем ошибку, а не «молчим»
+            import traceback
+            traceback.print_exc()
+            QtWidgets.QMessageBox.critical(
+                self, "Ошибка масштабирования",
+                f"Не удалось изменить масштаб:\n{e}\n\nПодробности в консоли.")
 
     def _on_drag(self, dx: int, dy: int) -> None:
         """Перетаскивание мышью: содержимое двигается за курсором."""
