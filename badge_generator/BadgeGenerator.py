@@ -374,6 +374,7 @@ class Badge:
             factor = 1.05 if factor else 0.95238095
         self._photo_scale = max(0.05, min(20.0, self._photo_scale * factor))
         self.apply_face_crop()
+        self.render()  # обновляем бейдж после изменения масштаба
 
     def get_photo_state(self) -> Tuple[int, int, int, int, str, str, str]:
         """Состояние правок (для undo): координаты, размер фото, имя, фамилия, должность."""
@@ -388,6 +389,7 @@ class Badge:
             self._photo_scale = pw / self._photo_original.width
         # координаты уже восстановлены из state — не пересчитываем по лицу
         self.apply_face_crop(keep_position=True)
+        self.render()
 
     # ------------------------------------------------------------------ #
     # Вывод
