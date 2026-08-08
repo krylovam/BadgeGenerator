@@ -219,13 +219,6 @@ class BadgeTemplate:
             position.uppercase = False
             position.lowercase = True
 
-        # Имя и фамилия — всегда заглавными буквами (uppercase).
-        for fid in ("name", "surname"):
-            field = self.get_text_field(fid)
-            if field is not None:
-                field.uppercase = True
-                field.lowercase = False
-
         name_format = str(data.get("name_format", DEFAULT_NAME_FORMAT)).lower()
         if name_format not in NAME_FORMATS:
             raise TemplateConfigError(

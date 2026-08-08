@@ -234,10 +234,6 @@ def test_old_config_position_normalized_on_load(tmp_path) -> None:
     assert pos.uppercase is False
     # якорь НЕ меняется (он означает центр текста — пользователь ставит сам)
     assert pos.anchor == (100, 400)
-    # имя и фамилия — заглавными
-    assert template.get_text_field("name").uppercase is True
-    assert template.get_text_field("surname").uppercase is True
-    assert template.get_text_field("name").lowercase is False
 
 
 def test_remove_background_flag_roundtrip(tmp_path) -> None:
