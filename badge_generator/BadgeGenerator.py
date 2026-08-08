@@ -18,7 +18,8 @@ from detector.FaceDetection import FaceDetector
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 READY_BADGES_DIR = PROJECT_ROOT / "ready-badges"
 
-MIN_FONT_SIZE = 20
+MIN_FONT_SIZE = 40  # ниже этого шрифт при auto_shrink не опускается:
+                    # иначе точки Ё/Й сливаются с основой буквы
 FONT_SHRINK_STEP = 0.9
 
 
