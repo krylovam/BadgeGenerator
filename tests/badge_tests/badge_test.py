@@ -465,3 +465,32 @@ def test_name_surname_uppercase_rendered(tmp_path) -> None:
     dark = (arr[:, :, 0] < 128) & (arr[:, :, 1] < 128) & (arr[:, :, 2] < 128)
     assert dark[80:180, :].any(), "имя не отрисовано"
     assert dark[230:330, :].any(), "фамилия не отрисована"
+
+
+def test_zoom_does_not_degrade_quality(tmp_path) -> None:
+    """Многократный зум не портит качество: фото пересчитывается от оригинала
+    (размер = оригинал * базовый масштаб лица * zoom-масштаб), а не от
+    накопленных resize. После серии +/− zoom-масштаб возвращается к 1.0."""
+    template = BadgeTemplate.from_template_file(TEMPLATE_PATH)
+    badge = Badge(0, TEST_CASES[1].file_path, template)
+    base_w = badge._photo.width  # после авто-кадрирования по лицу
+    # серия увеличений и уменьшений
+    for _ in range(10):
+        badge.scale_photo(1.05)
+    for _ in range(10):
+        badge.scale_photo(0.95238095)
+    # итоговый zoom-масштаб ≈ 1.0 (1.05^10 * 0.952^10 ≈ 1.0)
+    assert abs(badge._photo_scale - 1.0) < 0.05
+    # размер фото вернулся к базовому (без накопленных потерь)
+    assert abs(badge._photo.width - base_w) / base_w < 0.05
+
+
+def test_undo_keeps_position(template: BadgeTemplate) -> None:
+    """Undo восстанавливает и координаты, и масштаб."""
+    badge = Badge(0, TEST_CASES[1].file_path, template)
+    state = badge.get_photo_state()
+    badge.scale_photo(1.2)
+    badge.translate_photo(15, 10)
+    badge.set_photo_state(state)
+    assert badge.get_photo_coords() == (state[0], state[1])
+    assert badge._photo_scale == pytest.approx(state[2] / badge._photo_original.width, abs=0.05)

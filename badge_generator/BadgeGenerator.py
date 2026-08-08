@@ -59,6 +59,8 @@ class Badge:
         self._url = url
         self._template = template
         self._photo: Optional[Image.Image] = None
+        self._photo_original: Optional[Image.Image] = None
+        self._photo_scale: float = 1.0  # текущий масштаб относительно оригинала
         self._photo_x = 0
         self._photo_y = 0
         self._badge_image: Optional[Image.Image] = None
@@ -75,6 +77,9 @@ class Badge:
         self._detect_face_only()
         if template.photo.remove_background:
             self._remove_background()
+        # Оригинал (после удаления фона) — от него всегда пересчитывается зум,
+        # чтобы многократные нажатия не деградировали качество.
+        self._photo_original = self._photo.copy()
         self.apply_face_crop()
         self.render()
 
@@ -101,33 +106,42 @@ class Badge:
         self._face_box = detector.get_boxes()
         self._eye_center = detector.get_eye_center()
 
-    def apply_face_crop(self) -> None:
+    def apply_face_crop(self, keep_position: bool = False) -> None:
         """Масштабирует фото по лицу и позиционирует окно кадрирования.
 
         Вызывается повторно, если в конфиге изменились параметры photo
-        (crop_size, face_scale, face_offset_y). Горизонтально фото
-        центрируется по середине отрезка между глазами (YuNet даёт
-        ключевые точки лица), вертикально — по прямоугольнику лица
-        с учётом face_offset_y из конфига.
+        (crop_size, face_scale, face_offset_y) или при зуме.
+        Горизонтально фото центрируется по середине отрезка между глазами
+        (YuNet даёт ключевые точки лица), вертикально — по прямоугольнику
+        лица с учётом face_offset_y из конфига.
+
+        :param keep_position: если True — координаты окна не пересчитываются
+            (используются текущие _photo_x/_photo_y).
         """
         cw, ch = self._template.photo.crop_size
         box = self._face_box
+        # базовый масштаб: чтобы лицо (шириной w) заняло face_scale от ширины
+        # кадра; зум пользователя (_photo_scale) умножается сверху.
         if box is None:
             # Лицо не найдено — показываем центр кадра
             self._photo_x = max(0, (self._photo.width - cw) // 2)
             self._photo_y = max(0, (self._photo.height - ch) // 2)
             return
         x, y, w, h = box
-        scale = self._template.photo.face_scale * cw / w
-        new_size = (round(self._photo.width * scale), round(self._photo.height * scale))
-        self._photo = self._photo.resize(new_size, Image.Resampling.LANCZOS)
+        face_scale = self._template.photo.face_scale * cw / w
+        total_scale = face_scale * self._photo_scale
+        new_size = (max(1, round(self._photo_original.width * total_scale)),
+                    max(1, round(self._photo_original.height * total_scale)))
+        self._photo = self._photo_original.resize(new_size, Image.Resampling.LANCZOS)
+        # координаты центра лица в масштабе оригинала
         if self._eye_center is not None:
-            center_x = self._eye_center[0] * scale
+            center_x = self._eye_center[0] * total_scale
         else:
-            center_x = (x + w / 2) * scale
-        center_y = (y + h / 2) * scale * self._template.photo.face_offset_y
-        self._photo_x = int(min(max(0.0, center_x - cw / 2), max(0, self._photo.width - cw)))
-        self._photo_y = int(min(max(0.0, center_y - ch / 2), max(0, self._photo.height - ch)))
+            center_x = (x + w / 2) * total_scale
+        center_y = (y + h / 2) * total_scale * self._template.photo.face_offset_y
+        if not keep_position:
+            self._photo_x = int(min(max(0.0, center_x - cw / 2), max(0, self._photo.width - cw)))
+            self._photo_y = int(min(max(0.0, center_y - ch / 2), max(0, self._photo.height - ch)))
 
     # ------------------------------------------------------------------ #
     # Отрисовка
@@ -350,18 +364,16 @@ class Badge:
         self.render()
 
     def scale_photo(self, factor) -> None:
-        """Масштабирует фото с сохранением точки в центре окна кадрирования."""
+        """Масштабирует фото с сохранением точки в центре окна кадрирования.
+
+        Зум всегда пересчитывается от ОРИГИНАЛА (_photo_original), а не от
+        текущего уменьшенного кадра — многократные нажатия не накапливают
+        потери качества.
+        """
         if isinstance(factor, bool):
             factor = 1.05 if factor else 0.95238095
-        cw, ch = self._template.photo.crop_size
-        cx = self._photo_x + cw / 2
-        cy = self._photo_y + ch / 2
-        new_size = (max(1, round(self._photo.width * factor)),
-                    max(1, round(self._photo.height * factor)))
-        self._photo = self._photo.resize(new_size, Image.Resampling.LANCZOS)
-        self._photo_x = int(min(max(0.0, cx * factor - cw / 2), max(0, self._photo.width - cw)))
-        self._photo_y = int(min(max(0.0, cy * factor - ch / 2), max(0, self._photo.height - ch)))
-        self.render()
+        self._photo_scale = max(0.05, min(20.0, self._photo_scale * factor))
+        self.apply_face_crop()
 
     def get_photo_state(self) -> Tuple[int, int, int, int, str, str, str]:
         """Состояние правок (для undo): координаты, размер фото, имя, фамилия, должность."""
@@ -371,8 +383,11 @@ class Badge:
     def set_photo_state(self, state: Tuple[int, int, int, int, str, str, str]) -> None:
         (self._photo_x, self._photo_y, pw, ph,
          self._name, self._surname, self._position) = state
-        self._photo = self._photo.resize((pw, ph), Image.Resampling.LANCZOS)
-        self.render()
+        # восстанавливаем масштаб из размера фото относительно оригинала
+        if self._photo_original is not None and self._photo_original.width > 0:
+            self._photo_scale = pw / self._photo_original.width
+        # координаты уже восстановлены из state — не пересчитываем по лицу
+        self.apply_face_crop(keep_position=True)
 
     # ------------------------------------------------------------------ #
     # Вывод
