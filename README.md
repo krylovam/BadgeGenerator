@@ -141,6 +141,7 @@ design/                   # интерфейс (PySide6 / Qt 6)
 tools/
     derive_config.py      # конфиг из пары «макет + готовый бейдж»
     pngs_to_pdf.py        # PDF из нескольких PNG (CLI)
+    urls_to_qr_pdf.py     # PDF с QR-кодами из списка URL (CLI)
 assets/Montserrat.ttf     # шрифт по умолчанию
 ```
 

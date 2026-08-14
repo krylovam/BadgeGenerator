@@ -171,6 +171,23 @@ Working directory = корень проекта.
   Полезные флаги: `--dpi 300`, `--no-cut-lines`, `--margin-mm 8`,
   `--gap-mm 3`. Подробности: `python tools/pngs_to_pdf.py --help`.
 
+### Шаг 5.6. QR-коды из списка URL
+
+Скрипт `tools/urls_to_qr_pdf.py` генерирует PDF с QR-кодами для печати:
+
+```bash
+python tools/urls_to_qr_pdf.py urls.txt qr.pdf --qr-mm 30 --label num
+```
+
+- `urls.txt` — по одному URL на строку (пустые строки и `#` игнорируются);
+- можно передать URL прямо аргументами: `python tools/urls_to_qr_pdf.py https://a.ru https://b.ru out.pdf`;
+- `--qr-mm 30` — размер QR в мм (по умолчанию 30);
+- `--label num|url|none` — подпись под QR (номер / сам URL / без подписи);
+- линии отреза рисуются по умолчанию, отключить — `--no-cut-lines`;
+- `--max-per-page N` — ограничить число QR на странице.
+
+Подробности: `python tools/urls_to_qr_pdf.py --help`.
+
 ### Шаг 5.4. Удаление фона (опция)
 1. Скопируйте макет в `my_templates/`, выберите его, откройте мастер.
 2. Поставьте галочку **«удалять светлый фон с фото»** (секция «Область фото»),
