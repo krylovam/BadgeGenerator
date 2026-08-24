@@ -12,8 +12,20 @@
 
 ### Установка
 
+Для скрипта подписей нужен только Pillow. Используйте отдельный файл зависимостей — основной `requirements.txt` относится к старому GUI-приложению и содержит версии, несовместимые с Python 3.13.
+
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-caption.txt
+```
+
+Pillow 11 и новее поддерживает Python 3.13. Если после неудачной установки окружение оказалось повреждено, его можно пересоздать:
+
+```bash
+deactivate 2>/dev/null || true
+rm -rf venv
+python3.13 -m venv venv
+source venv/bin/activate
+python -m pip install -r requirements-caption.txt
 ```
 
 ### Запуск
